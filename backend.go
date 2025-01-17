@@ -67,39 +67,79 @@ func saveFile(file multipart.File, header *multipart.FileHeader, destDir string)
 	return header.Filename, nil
 }
 
-// Fungsi untuk mengambil address dinamis dari database berdasarkan nama party
-func getAddressFromDB(partyName string) (string, error) {
-	query := "SELECT endpoint_url FROM party WHERE name = ?"
-	var address string
-	err := db.QueryRow(query, partyName).Scan(&address)
+func getAddressFromDB(partyName string) (string, string, error) {
+	query := "SELECT endpoint_url, party_id FROM party WHERE name = ?"
+	var address, partyID string
+
+	err := db.QueryRow(query, partyName).Scan(&address, &partyID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return "", fmt.Errorf("no address found for party: %s", partyName)
-		}
-		return "", fmt.Errorf("database query failed: %v", err)
+		return "", "", err
 	}
-	return address, nil
+
+	return address, partyID, nil
 }
 
-func updatePModeTemplate(partyName string) error {
-	address, err := getAddressFromDB(partyName)
-	if err != nil {
-		return err
+// Fungsi untuk menggantikan placeholder dalam template
+func replacePlaceholders(template, address, partyID string) (string, error) {
+	if template == "" {
+		return "", fmt.Errorf("template is empty")
+	}
+	replaced := strings.ReplaceAll(template, "${dynamic_responder_party_id}", partyID)
+	replaced = strings.ReplaceAll(replaced, "${dynamic_address}", address)
+	return replaced, nil
+}
+
+// Fungsi untuk memperbarui P-Mode secara otomatis berdasarkan URL referer
+func updatePModeTemplate(partyName, payload string, referer string) error {
+	log.Printf("Updating P-Mode for party: %s", partyName)
+
+	// Tentukan mode berdasarkan referer atau payload
+	mode := "default"
+	if strings.Contains(referer, "http://localhost:5173/compose") {
+		mode = "push"
+		log.Println("Push mode is active due to user accessing /compose page.")
+	} else if strings.Contains(payload, "<attachment>") {
+		mode = "push"
+		log.Println("Push mode is active due to attachment in payload.")
 	}
 
-	templateFile := `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\repository\pmodes\ex-pm-push-init.xml`
+	// Pilih file template berdasarkan mode
+	templateFile := ""
+	switch mode {
+	case "push":
+		templateFile = `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\examples\pmodes\ex-pm-push-init.xml`
+	case "default":
+		templateFile = `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\examples\pmodes\ex-pm-push-resp.xml`
+	}
+
+	// Baca template P-Mode
 	pmodeContent, err := os.ReadFile(templateFile)
 	if err != nil {
 		return fmt.Errorf("failed to read P-Mode template: %v", err)
 	}
 
-	updatedContent := strings.ReplaceAll(string(pmodeContent), "${dynamicAddress}", address)
+	// Perbarui placeholder hanya jika mode adalah push
+	if mode == "push" {
+		address, partyID, err := getAddressFromDB(partyName)
+		if err != nil {
+			return fmt.Errorf("failed to get address and partyID: %v", err)
+		}
 
-	err = os.WriteFile(templateFile, []byte(updatedContent), 0644)
-	if err != nil {
-		return fmt.Errorf("failed to overwrite P-Mode template: %v", err)
+		// Gantikan placeholder di template
+		updatedContent, err := replacePlaceholders(string(pmodeContent), address, partyID)
+		if err != nil {
+			return fmt.Errorf("failed to replace placeholders in template: %v", err)
+		}
+		pmodeContent = []byte(updatedContent)
 	}
 
+	// Tulis ke file P-Mode aktif
+	activePMode := `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\repository\pmodes\current-pmode.xml`
+	if err := os.WriteFile(activePMode, pmodeContent, 0644); err != nil {
+		return fmt.Errorf("failed to overwrite active P-Mode file: %v", err)
+	}
+
+	log.Printf("P-Mode updated to %s mode successfully", mode)
 	return nil
 }
 
@@ -110,7 +150,7 @@ func writeMMDFile(message AS4Message, attachmentFileName, mimeType, dynamicAddre
 		XSI:            "http://www.w3.org/2001/XMLSchema-instance",
 		SchemaLocation: "http://holodeck-b2b.org/schemas/2014/06/mmd ../repository/xsd/messagemetadata.xsd",
 	}
-	mmd.CollaborationInfo.AgreementRef.PMode = "ex-pm-push-init"
+	mmd.CollaborationInfo.AgreementRef.PMode = "current-pmode-push"
 	mmd.CollaborationInfo.ConversationId = "org:holodeckb2b:test:conversation"
 
 	mmd.PayloadInfo.DeleteFilesAfterSubmit = false
@@ -169,13 +209,16 @@ func MessageHandler(w http.ResponseWriter, r *http.Request) {
 		Payload:   r.FormValue("payload"),
 	}
 
-	err := updatePModeTemplate(message.ToParty)
+	// Ambil referer dari header HTTP
+	referer := r.Header.Get("Referer")
+
+	err := updatePModeTemplate(message.ToParty, message.Payload, referer)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to update P-Mode template: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	dynamicAddress, err := getAddressFromDB(message.ToParty)
+	dynamicAddress, _, err := getAddressFromDB(message.ToParty)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to get address for party: %v", err), http.StatusInternalServerError)
 		return
