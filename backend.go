@@ -67,6 +67,19 @@ func saveFile(file multipart.File, header *multipart.FileHeader, destDir string)
 	return header.Filename, nil
 }
 
+func savePayloadToXMLFile(payload, filePath string) error {
+	if strings.TrimSpace(payload) == "" {
+		return fmt.Errorf("payload is empty")
+	}
+
+	err := os.WriteFile(filePath, []byte(payload), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to save payload to XML: %v", err)
+	}
+
+	return nil
+}
+
 func getAddressFromDB(partyName string) (string, string, error) {
 	query := "SELECT endpoint_url, party_id FROM party WHERE name = ?"
 	var address, partyID string
@@ -79,7 +92,7 @@ func getAddressFromDB(partyName string) (string, string, error) {
 	return address, partyID, nil
 }
 
-// Fungsi untuk menggantikan placeholder dalam template
+// Fungsi untuk menggantikan placeholder dalam file template
 func replacePlaceholders(template, address, partyID string) (string, error) {
 	if template == "" {
 		return "", fmt.Errorf("template is empty")
@@ -89,28 +102,18 @@ func replacePlaceholders(template, address, partyID string) (string, error) {
 	return replaced, nil
 }
 
-// Fungsi untuk memperbarui P-Mode secara otomatis berdasarkan URL referer
-func updatePModeTemplate(partyName, payload string, referer string) error {
-	log.Printf("Updating P-Mode for party: %s", partyName)
+// Fungsi untuk memperbarui P-Mode dengan nilai dynamicAddress dan partyID
+func updatePModeTemplate(partyName string) error {
 
-	// Tentukan mode berdasarkan referer atau payload
-	mode := "default"
-	if strings.Contains(referer, "http://localhost:5173/compose") {
-		mode = "push"
-		log.Println("Push mode is active due to user accessing /compose page.")
-	} else if strings.Contains(payload, "<attachment>") {
-		mode = "push"
-		log.Println("Push mode is active due to attachment in payload.")
+	// Ambil dynamicAddress dan partyID dari database
+	dynamicAddress, partyID, err := getAddressFromDB(partyName)
+	if err != nil {
+		return fmt.Errorf("failed to get address and partyID for party %s: %v", partyName, err)
 	}
+	log.Printf("Dynamic Address: %s, Party ID: %s", dynamicAddress, partyID)
 
-	// Pilih file template berdasarkan mode
-	templateFile := ""
-	switch mode {
-	case "push":
-		templateFile = `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\examples\pmodes\ex-pm-push-init.xml`
-	case "default":
-		templateFile = `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\examples\pmodes\ex-pm-push-resp.xml`
-	}
+	// Path file template P-Mode (hardcoded untuk mode push)
+	templateFile := `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\examples\pmodes\ex-pm-push-init.xml`
 
 	// Baca template P-Mode
 	pmodeContent, err := os.ReadFile(templateFile)
@@ -118,33 +121,26 @@ func updatePModeTemplate(partyName, payload string, referer string) error {
 		return fmt.Errorf("failed to read P-Mode template: %v", err)
 	}
 
-	// Perbarui placeholder hanya jika mode adalah push
-	if mode == "push" {
-		address, partyID, err := getAddressFromDB(partyName)
-		if err != nil {
-			return fmt.Errorf("failed to get address and partyID: %v", err)
-		}
-
-		// Gantikan placeholder di template
-		updatedContent, err := replacePlaceholders(string(pmodeContent), address, partyID)
-		if err != nil {
-			return fmt.Errorf("failed to replace placeholders in template: %v", err)
-		}
-		pmodeContent = []byte(updatedContent)
+	// Gantikan placeholder dengan dynamicAddress dan partyID
+	updatedContent, err := replacePlaceholders(string(pmodeContent), dynamicAddress, partyID)
+	if err != nil {
+		return fmt.Errorf("failed to replace placeholders in template: %v", err)
 	}
 
-	// Tulis ke file P-Mode aktif
+	// Path untuk file P-Mode aktif
 	activePMode := `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\repository\pmodes\current-pmode.xml`
-	if err := os.WriteFile(activePMode, pmodeContent, 0644); err != nil {
+
+	// Overwrite P-Mode aktif dengan konten yang diperbarui
+	if err := os.WriteFile(activePMode, []byte(updatedContent), 0644); err != nil {
 		return fmt.Errorf("failed to overwrite active P-Mode file: %v", err)
 	}
 
-	log.Printf("P-Mode updated to %s mode successfully", mode)
+	log.Printf("P-Mode successfully updated for party: %s", partyName)
 	return nil
 }
 
-// Fungsi untuk membuat file MMD dan menyertakan address dinamis
-func writeMMDFile(message AS4Message, attachmentFileName, mimeType, dynamicAddress string) error {
+// Fungsi untuk membuat file MMD
+func writeMMDFile(message AS4Message, attachmentFileName, mimeType string) error {
 	mmd := MessageMetaData{
 		XMLNS:          "http://holodeck-b2b.org/schemas/2014/06/mmd",
 		XSI:            "http://www.w3.org/2001/XMLSchema-instance",
@@ -157,10 +153,6 @@ func writeMMDFile(message AS4Message, attachmentFileName, mimeType, dynamicAddre
 	mmd.PayloadInfo.PartInfo.Containment = "attachment"
 	mmd.PayloadInfo.PartInfo.MimeType = mimeType
 	mmd.PayloadInfo.PartInfo.Location = filepath.Join("payloads", attachmentFileName)
-
-	if strings.TrimSpace(dynamicAddress) == "" {
-		return fmt.Errorf("dynamic address cannot be empty")
-	}
 
 	outputDir := `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\data\msg_out`
 	timestamp := time.Now().Format("20060102150405")
@@ -181,6 +173,7 @@ func writeMMDFile(message AS4Message, attachmentFileName, mimeType, dynamicAddre
 
 // Handler untuk menerima pesan AS4 dan memproses lampiran
 func MessageHandler(w http.ResponseWriter, r *http.Request) {
+	// Preflight CORS handling
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
@@ -209,54 +202,54 @@ func MessageHandler(w http.ResponseWriter, r *http.Request) {
 		Payload:   r.FormValue("payload"),
 	}
 
-	// Ambil referer dari header HTTP
-	referer := r.Header.Get("Referer")
-
-	err := updatePModeTemplate(message.ToParty, message.Payload, referer)
-	if err != nil {
+	// Update P-Mode menggunakan nilai dynamicAddress dan partyID
+	if err := updatePModeTemplate(message.ToParty); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to update P-Mode template: %v", err), http.StatusInternalServerError)
 		return
 	}
-
-	dynamicAddress, _, err := getAddressFromDB(message.ToParty)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get address for party: %v", err), http.StatusInternalServerError)
-		return
-	}
-
 	attachmentFileName := ""
 	mimeType := ""
 
+	// Direktori payload
+	payloadDir := `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\data\msg_out\payloads`
+
+	// Cek dan simpan attachment jika ada
 	if attachmentFile, fileHeader, err := r.FormFile("attachment"); err == nil {
 		defer attachmentFile.Close()
-		attachmentFileName, err = saveFile(attachmentFile, fileHeader, `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\data\msg_out\payloads`)
+		attachmentFileName, err = saveFile(attachmentFile, fileHeader, payloadDir)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to save file: %v", err), http.StatusInternalServerError)
 			return
 		}
 		mimeType = fileHeader.Header.Get("Content-Type")
 	} else {
+		// Simpan payload sebagai file XML jika tidak ada attachment
 		attachmentFileName = fmt.Sprintf("default_%s.xml", time.Now().Format("20060102150405"))
 		mimeType = "application/xml"
-		if err := os.WriteFile(filepath.Join(`C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\data\msg_out\payloads`, attachmentFileName), []byte(message.Payload), 0644); err != nil {
+		if err := savePayloadToXMLFile(message.Payload, filepath.Join(payloadDir, attachmentFileName)); err != nil {
 			http.Error(w, fmt.Sprintf("Failed to write default XML: %v", err), http.StatusInternalServerError)
 			return
 		}
 	}
 
-	if err := writeMMDFile(message, attachmentFileName, mimeType, dynamicAddress); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to create MMD file: %v", err), http.StatusInternalServerError)
+	// Simpan payload sebagai file XML meskipun ada attachment
+	payloadFileName := fmt.Sprintf("%s_payload.xml", message.MessageID)
+	if err := savePayloadToXMLFile(message.Payload, filepath.Join(payloadDir, payloadFileName)); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to save payload XML: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	response := map[string]string{
-		"status":  "success",
-		"message": "Attachment and metadata processed successfully",
+	// Tulis file MMD
+	if err := writeMMDFile(message, attachmentFileName, mimeType); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to write MMD: %v", err), http.StatusInternalServerError)
+		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Message processed successfully"})
 }
 
+// Fungsi utama
 func main() {
 	var err error
 	db, err = sql.Open("mysql", "root:@tcp(localhost:3306)/proyekta")
