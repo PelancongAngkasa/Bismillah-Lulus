@@ -72,7 +72,6 @@ export default {
       message: "", // Pesan utama
       attachment: null, // File lampiran
       loading: false, // Status loading
-      pmodeMode: "default", // Default mode untuk menentukan P-Mode
     };
   },
   methods: {
@@ -81,24 +80,14 @@ export default {
     },
     handleFileUpload(event) {
       this.attachment = event.target.files[0];
-      this.updatePMode();
     },
     handleDrop(event) {
       this.attachment = event.dataTransfer.files[0];
-      this.updatePMode();
     },
     removeAttachment() {
       this.attachment = null;
-      this.updatePMode();
     },
-    updatePMode() {
-      // Logika untuk menentukan P-Mode (push atau default)
-      if (this.attachment || this.message.trim()) {
-        this.pmodeMode = "push"; // Aktifkan mode push jika ada lampiran atau isi pesan
-      } else {
-        this.pmodeMode = "default"; // Kembalikan ke mode default
-      }
-    },
+
     async sendMail() {
       if (!this.toParty || !this.message) {
         alert("To and Message fields are required.");
@@ -115,14 +104,13 @@ export default {
       formData.append("action", "SendMail");
       formData.append("messageId", `msg-${Date.now()}`);
       formData.append("payload", this.message);
-      formData.append("pmodeMode", this.pmodeMode); // Kirim mode ke backend
 
       if (this.attachment) {
         formData.append("attachment", this.attachment);
       }
 
       try {
-        const response = await fetch("http://localhost:8081/api/as4/send", { // Sesuaikan URL backend
+        const response = await fetch("http://localhost:8081/api/as4/send", {
           method: "POST",
           body: formData,
         });
@@ -141,7 +129,6 @@ export default {
       this.toParty = "";
       this.message = "";
       this.attachment = null;
-      this.pmodeMode = "default";
     },
   },
 };

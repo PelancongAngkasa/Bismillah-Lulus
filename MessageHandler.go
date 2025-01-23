@@ -41,7 +41,8 @@ type MessageMetaData struct {
 		} `xml:"AgreementRef"`
 		ConversationId string `xml:"ConversationId"`
 	} `xml:"CollaborationInfo"`
-	PayloadInfo struct {
+	MessageContent string `xml:"messageContent"`
+	PayloadInfo    struct {
 		DeleteFilesAfterSubmit bool `xml:"deleteFilesAfterSubmit,attr"`
 		PartInfo               struct {
 			Containment string `xml:"containment,attr"`
@@ -113,7 +114,7 @@ func updatePModeTemplate(partyName string) error {
 	log.Printf("Dynamic Address: %s, Party ID: %s", dynamicAddress, partyID)
 
 	// Path file template P-Mode (hardcoded untuk mode push)
-	templateFile := `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\examples\pmodes\ex-pm-push-init.xml`
+	templateFile := `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\examples\pmodes\pm-push.xml`
 
 	// Baca template P-Mode
 	pmodeContent, err := os.ReadFile(templateFile)
@@ -148,26 +149,37 @@ func writeMMDFile(message AS4Message, attachmentFileName, mimeType string) error
 	}
 	mmd.CollaborationInfo.AgreementRef.PMode = "current-pmode-push"
 	mmd.CollaborationInfo.ConversationId = "org:holodeckb2b:test:conversation"
-
+	mmd.MessageContent = message.Payload
+	// Konfigurasi PayloadInfo untuk attachment
 	mmd.PayloadInfo.DeleteFilesAfterSubmit = false
-	mmd.PayloadInfo.PartInfo.Containment = "attachment"
-	mmd.PayloadInfo.PartInfo.MimeType = mimeType
-	mmd.PayloadInfo.PartInfo.Location = filepath.Join("payloads", attachmentFileName)
+	mmd.PayloadInfo.PartInfo = struct {
+		Containment string `xml:"containment,attr"`
+		MimeType    string `xml:"mimeType,attr"`
+		Location    string `xml:"location,attr"`
+	}{
+		Containment: "attachment",
+		MimeType:    mimeType,
+		Location:    filepath.Join("payloads", attachmentFileName),
+	}
 
+	// Path untuk direktori output
 	outputDir := `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\data\msg_out`
 	timestamp := time.Now().Format("20060102150405")
 	fileName := filepath.Join(outputDir, fmt.Sprintf("%s_%s.mmd", message.MessageID, timestamp))
 
+	// Serialize ke XML
 	mmdXML, err := xml.MarshalIndent(mmd, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal MMD to XML: %v", err)
 	}
 
+	// Tulis file MMD
 	err = os.WriteFile(fileName, mmdXML, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write MMD file: %v", err)
 	}
 
+	log.Printf("MMD file created: %s", fileName)
 	return nil
 }
 
@@ -207,11 +219,11 @@ func MessageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to update P-Mode template: %v", err), http.StatusInternalServerError)
 		return
 	}
-	attachmentFileName := ""
-	mimeType := ""
 
 	// Direktori payload
 	payloadDir := `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\data\msg_out\payloads`
+	attachmentFileName := ""
+	mimeType := ""
 
 	// Cek dan simpan attachment jika ada
 	if attachmentFile, fileHeader, err := r.FormFile("attachment"); err == nil {
@@ -223,7 +235,7 @@ func MessageHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		mimeType = fileHeader.Header.Get("Content-Type")
 	} else {
-		// Simpan payload sebagai file XML jika tidak ada attachment
+		// Jika tidak ada attachment, gunakan payload sebagai default file
 		attachmentFileName = fmt.Sprintf("default_%s.xml", time.Now().Format("20060102150405"))
 		mimeType = "application/xml"
 		if err := savePayloadToXMLFile(message.Payload, filepath.Join(payloadDir, attachmentFileName)); err != nil {
@@ -232,19 +244,20 @@ func MessageHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Simpan payload sebagai file XML meskipun ada attachment
+	// **Selalu simpan payload sebagai file XML terpisah**
 	payloadFileName := fmt.Sprintf("%s_payload.xml", message.MessageID)
 	if err := savePayloadToXMLFile(message.Payload, filepath.Join(payloadDir, payloadFileName)); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to save payload XML: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Tulis file MMD
+	// **Tulis file MMD dengan kedua file: attachment dan payload**
 	if err := writeMMDFile(message, attachmentFileName, mimeType); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to write MMD: %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	// Respon sukses
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Message processed successfully"})
 }
