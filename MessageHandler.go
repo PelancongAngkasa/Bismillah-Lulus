@@ -41,10 +41,9 @@ type MessageMetaData struct {
 		} `xml:"AgreementRef"`
 		ConversationId string `xml:"ConversationId"`
 	} `xml:"CollaborationInfo"`
-	MessageContent string `xml:"messageContent"`
-	PayloadInfo    struct {
-		DeleteFilesAfterSubmit bool `xml:"deleteFilesAfterSubmit,attr"`
-		PartInfo               struct {
+	PayloadInfo struct {
+		DeleteFilesAfterSubmit bool       `xml:"deleteFilesAfterSubmit,attr"`
+		PartInfo               []struct { // Ubah menjadi array
 			Containment string `xml:"containment,attr"`
 			MimeType    string `xml:"mimeType,attr"`
 			Location    string `xml:"location,attr"`
@@ -52,9 +51,24 @@ type MessageMetaData struct {
 	} `xml:"PayloadInfo"`
 }
 
-// Fungsi untuk menyimpan file yang diterima ke folder tertentu
+// saveFile saves an uploaded file to the specified directory
 func saveFile(file multipart.File, header *multipart.FileHeader, destDir string) (string, error) {
 	destPath := filepath.Join(destDir, header.Filename)
+
+	// Detect MIME type
+	buffer := make([]byte, 512)
+	if _, err := file.Read(buffer); err != nil {
+		return "", fmt.Errorf("failed to read file: %v", err)
+	}
+	file.Seek(0, io.SeekStart) // Reset file reader position
+	mimeType := http.DetectContentType(buffer)
+
+	// Validate MIME type
+	if mimeType != "image/jpeg" && mimeType != "image/png" && mimeType != "application/pdf" {
+		return "", fmt.Errorf("unsupported file type: %s", mimeType)
+	}
+
+	// Save file
 	outFile, err := os.Create(destPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create file: %v", err)
@@ -66,19 +80,6 @@ func saveFile(file multipart.File, header *multipart.FileHeader, destDir string)
 	}
 
 	return header.Filename, nil
-}
-
-func savePayloadToXMLFile(payload, filePath string) error {
-	if strings.TrimSpace(payload) == "" {
-		return fmt.Errorf("payload is empty")
-	}
-
-	err := os.WriteFile(filePath, []byte(payload), 0644)
-	if err != nil {
-		return fmt.Errorf("failed to save payload to XML: %v", err)
-	}
-
-	return nil
 }
 
 func getAddressFromDB(partyName string) (string, string, error) {
@@ -140,8 +141,98 @@ func updatePModeTemplate(partyName string) error {
 	return nil
 }
 
+func writePayloadAsSOAP(message AS4Message, outputDir string) error {
+	payloadFileName := fmt.Sprintf("%s_payload.xml", message.MessageID)
+	payloadPath := filepath.Join(outputDir, payloadFileName)
+
+	// Struktur SOAP Envelope
+	soapEnvelope := struct {
+		XMLName xml.Name `xml:"SOAP:Envelope"`
+		SOAP    string   `xml:"xmlns:SOAP,attr"`
+		EB      string   `xml:"xmlns:eb,attr"`
+		Header  struct {
+			Messaging struct {
+				UserMessage struct {
+					MessageInfo struct {
+						MessageId string `xml:"eb:MessageId"`
+						Timestamp string `xml:"eb:Timestamp"`
+					} `xml:"eb:MessageInfo"`
+					PartyInfo struct {
+						From struct {
+							PartyId string `xml:"eb:PartyId"`
+						} `xml:"eb:From"`
+						To struct {
+							PartyId string `xml:"eb:PartyId"`
+						} `xml:"eb:To"`
+					} `xml:"eb:PartyInfo"`
+					CollaborationInfo struct {
+						Service string `xml:"eb:Service"`
+						Action  string `xml:"eb:Action"`
+					} `xml:"eb:CollaborationInfo"`
+					PayloadInfo struct {
+						PartInfo struct {
+							Href         string `xml:"eb:href,attr"`
+							PartProperty struct {
+								Name  string `xml:"name,attr"`
+								Value string `xml:",chardata"`
+							} `xml:"eb:PartProperties>eb:Property"`
+						} `xml:"eb:PartInfo"`
+					} `xml:"eb:PayloadInfo"`
+				} `xml:"eb:UserMessage"`
+			} `xml:"eb:Messaging"`
+		} `xml:"SOAP:Header"`
+		Body struct {
+			MessageContent struct {
+				Document string `xml:"myns:Document"`
+			} `xml:"myns:MessageContent"`
+		} `xml:"SOAP:Body"`
+	}{
+		SOAP: "http://www.w3.org/2003/05/soap-envelope",
+		EB:   "http://docs.oasis-open.org/ebxml-msg/ebms/v3.0/ns/core/200704",
+	}
+
+	// Isi Header SOAP
+	soapEnvelope.Header.Messaging.UserMessage.MessageInfo.MessageId = message.MessageID
+	soapEnvelope.Header.Messaging.UserMessage.MessageInfo.Timestamp = time.Now().UTC().Format(time.RFC3339)
+	soapEnvelope.Header.Messaging.UserMessage.PartyInfo.From.PartyId = message.FromParty
+	soapEnvelope.Header.Messaging.UserMessage.PartyInfo.To.PartyId = message.ToParty
+	soapEnvelope.Header.Messaging.UserMessage.CollaborationInfo.Service = message.Service
+	soapEnvelope.Header.Messaging.UserMessage.CollaborationInfo.Action = message.Action
+	soapEnvelope.Header.Messaging.UserMessage.PayloadInfo.PartInfo.Href = "cid:payload1"
+	soapEnvelope.Header.Messaging.UserMessage.PayloadInfo.PartInfo.PartProperty.Name = "MimeType"
+	soapEnvelope.Header.Messaging.UserMessage.PayloadInfo.PartInfo.PartProperty.Value = "application/xml"
+
+	// Isi Body SOAP
+	soapEnvelope.Body.MessageContent.Document = message.Payload
+
+	// Serialize ke file
+	soapXML, err := xml.MarshalIndent(soapEnvelope, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal SOAP payload: %v", err)
+	}
+	return os.WriteFile(payloadPath, soapXML, 0644)
+}
+
 // Fungsi untuk membuat file MMD
-func writeMMDFile(message AS4Message, attachmentFileName, mimeType string) error {
+func writeMMDFile(message AS4Message, attachmentFileName string, mimeType string, outputDir string) error {
+	// Direktori untuk payload
+	payloadDir := filepath.Join(outputDir, "payloads")
+	if _, err := os.Stat(payloadDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(payloadDir, os.ModePerm); err != nil {
+			return fmt.Errorf("failed to create payload directory: %v", err)
+		}
+	}
+
+	// Buat file SOAP envelope
+	err := writePayloadAsSOAP(message, payloadDir)
+	if err != nil {
+		return fmt.Errorf("failed to write SOAP payload: %v", err)
+	}
+
+	soapPayloadFileName := fmt.Sprintf("%s_payload.xml", message.MessageID)
+	soapPayloadPath := filepath.Join("payloads", soapPayloadFileName)
+
+	// Metadata MMD
 	mmd := MessageMetaData{
 		XMLNS:          "http://holodeck-b2b.org/schemas/2014/06/mmd",
 		XSI:            "http://www.w3.org/2001/XMLSchema-instance",
@@ -149,37 +240,45 @@ func writeMMDFile(message AS4Message, attachmentFileName, mimeType string) error
 	}
 	mmd.CollaborationInfo.AgreementRef.PMode = "current-pmode-push"
 	mmd.CollaborationInfo.ConversationId = "org:holodeckb2b:test:conversation"
-	mmd.MessageContent = message.Payload
-	// Konfigurasi PayloadInfo untuk attachment
 	mmd.PayloadInfo.DeleteFilesAfterSubmit = false
-	mmd.PayloadInfo.PartInfo = struct {
+
+	// Tambahkan PartInfo untuk SOAP payload
+	mmd.PayloadInfo.PartInfo = append(mmd.PayloadInfo.PartInfo, struct {
 		Containment string `xml:"containment,attr"`
 		MimeType    string `xml:"mimeType,attr"`
 		Location    string `xml:"location,attr"`
 	}{
-		Containment: "attachment",
-		MimeType:    mimeType,
-		Location:    filepath.Join("payloads", attachmentFileName),
+		Containment: "inline",
+		MimeType:    "application/xml",
+		Location:    soapPayloadPath,
+	})
+
+	// Jika ada attachment, tambahkan ke PartInfo
+	if attachmentFileName != "" {
+		mmd.PayloadInfo.PartInfo = append(mmd.PayloadInfo.PartInfo, struct {
+			Containment string `xml:"containment,attr"`
+			MimeType    string `xml:"mimeType,attr"`
+			Location    string `xml:"location,attr"`
+		}{
+			Containment: "attachment",
+			MimeType:    mimeType,
+			Location:    filepath.Join("payloads", attachmentFileName),
+		})
 	}
 
-	// Path untuk direktori output
-	outputDir := `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\data\msg_out`
-	timestamp := time.Now().Format("20060102150405")
-	fileName := filepath.Join(outputDir, fmt.Sprintf("%s_%s.mmd", message.MessageID, timestamp))
+	// Serialize metadata MMD ke file
+	mmdFileName := fmt.Sprintf("%s.mmd", message.MessageID)
+	mmdFilePath := filepath.Join(outputDir, mmdFileName)
 
-	// Serialize ke XML
 	mmdXML, err := xml.MarshalIndent(mmd, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal MMD to XML: %v", err)
 	}
 
-	// Tulis file MMD
-	err = os.WriteFile(fileName, mmdXML, 0644)
-	if err != nil {
+	if err := os.WriteFile(mmdFilePath, mmdXML, 0644); err != nil {
 		return fmt.Errorf("failed to write MMD file: %v", err)
 	}
 
-	log.Printf("MMD file created: %s", fileName)
 	return nil
 }
 
@@ -205,6 +304,7 @@ func MessageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Ambil data dari request
 	message := AS4Message{
 		FromParty: r.FormValue("fromParty"),
 		ToParty:   r.FormValue("toParty"),
@@ -214,18 +314,24 @@ func MessageHandler(w http.ResponseWriter, r *http.Request) {
 		Payload:   r.FormValue("payload"),
 	}
 
-	// Update P-Mode menggunakan nilai dynamicAddress dan partyID
+	// Update P-Mode dengan dynamicAddress dan partyID
 	if err := updatePModeTemplate(message.ToParty); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to update P-Mode template: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Direktori payload
-	payloadDir := `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\data\msg_out\payloads`
+	payloadDir := "C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/data/msg_out/payloads"
+	if _, err := os.Stat(payloadDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(payloadDir, os.ModePerm); err != nil {
+			http.Error(w, "Failed to create payload directory", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	attachmentFileName := ""
 	mimeType := ""
 
-	// Cek dan simpan attachment jika ada
+	// Tangani file attachment jika ada
 	if attachmentFile, fileHeader, err := r.FormFile("attachment"); err == nil {
 		defer attachmentFile.Close()
 		attachmentFileName, err = saveFile(attachmentFile, fileHeader, payloadDir)
@@ -234,26 +340,21 @@ func MessageHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		mimeType = fileHeader.Header.Get("Content-Type")
+		log.Printf("Attachment saved: %s (MIME: %s)", attachmentFileName, mimeType)
 	} else {
-		// Jika tidak ada attachment, gunakan payload sebagai default file
-		attachmentFileName = fmt.Sprintf("default_%s.xml", time.Now().Format("20060102150405"))
-		mimeType = "application/xml"
-		if err := savePayloadToXMLFile(message.Payload, filepath.Join(payloadDir, attachmentFileName)); err != nil {
-			http.Error(w, fmt.Sprintf("Failed to write default XML: %v", err), http.StatusInternalServerError)
-			return
-		}
+		log.Println("No attachment provided; using only payload.")
 	}
 
-	// **Selalu simpan payload sebagai file XML terpisah**
-	payloadFileName := fmt.Sprintf("%s_payload.xml", message.MessageID)
-	if err := savePayloadToXMLFile(message.Payload, filepath.Join(payloadDir, payloadFileName)); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to save payload XML: %v", err), http.StatusInternalServerError)
+	// Tulis file SOAP payload
+	if err := writePayloadAsSOAP(message, payloadDir); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to write SOAP payload: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// **Tulis file MMD dengan kedua file: attachment dan payload**
-	if err := writeMMDFile(message, attachmentFileName, mimeType); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to write MMD: %v", err), http.StatusInternalServerError)
+	// Tulis file MMD (metadata)
+	outputDir := "C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/data/msg_out"
+	if err := writeMMDFile(message, attachmentFileName, mimeType, outputDir); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to create MMD file: %v", err), http.StatusInternalServerError)
 		return
 	}
 

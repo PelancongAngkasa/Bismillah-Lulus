@@ -98,10 +98,10 @@ export default {
 
       // Membuat FormData untuk backend
       const formData = new FormData();
-      formData.append("fromParty", "Company A");
+      formData.append("fromParty", "org:holodeckb2b:example:company:A");
       formData.append("toParty", this.toParty);
-      formData.append("service", "EmailService");
-      formData.append("action", "SendMail");
+      formData.append("service", "Examples");
+      formData.append("action", "StoreMessage");
       formData.append("messageId", `msg-${Date.now()}`);
       formData.append("payload", this.message);
 
