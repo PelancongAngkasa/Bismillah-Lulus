@@ -31,12 +31,16 @@ export default {
   },
   data() {
     return {
-      mails: [
-        { sender: "Acme Inc.", subject: "Insights: Latest equipment", date: "Feb, 26" },
-        { sender: "Travel Tales", subject: "Adventures & Destinations", date: "March, 26" },
-        { sender: "Delta Enterprises", subject: "Delta Weekly News", date: "Jan, 26" },
-      ],
+      mails: [],
     };
+  },
+  created() {
+    fetch("http://localhost:9091/api/mails")
+      .then((response) => response.json())
+      .then((data) => {
+      this.mails = data;
+      })
+    .catch((error) => console.error("Error fetching mails:", error));
   },
 };
 </script>
