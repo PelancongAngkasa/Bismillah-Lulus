@@ -52,6 +52,7 @@ type Mail struct {
 	Sender   string `json:"sender"`
 	Receiver string `json:"receiver"`
 	Date     string `json:"date"`
+	FileName string `json:"fileName"` // Tambahkan fileName
 }
 
 func getMails(w http.ResponseWriter, r *http.Request) {
@@ -88,7 +89,7 @@ func getMails(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			// Validate required fields
+			// Validasi data
 			if envelope.Header.Messaging.UserMessage.MessageInfo.MessageId == "" ||
 				envelope.Header.Messaging.UserMessage.PartyInfo.From.PartyId == "" ||
 				envelope.Header.Messaging.UserMessage.PartyInfo.To.PartyId == "" ||
@@ -102,6 +103,7 @@ func getMails(w http.ResponseWriter, r *http.Request) {
 				Sender:   envelope.Header.Messaging.UserMessage.PartyInfo.From.PartyId,
 				Receiver: envelope.Header.Messaging.UserMessage.PartyInfo.To.PartyId,
 				Date:     envelope.Header.Messaging.UserMessage.MessageInfo.Timestamp,
+				FileName: file.Name(), // Tambahkan nama file sebagai parameter
 			})
 		}
 	}
