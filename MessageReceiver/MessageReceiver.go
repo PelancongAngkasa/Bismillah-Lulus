@@ -30,6 +30,7 @@ type SOAPEnvelope struct {
 				CollaborationInfo struct {
 					Service string `xml:"Service"`
 					Action  string `xml:"Action"`
+					Subject string `xml:"Subject"`
 				} `xml:"CollaborationInfo"`
 				PayloadInfo struct {
 					PartInfo struct {
@@ -52,7 +53,8 @@ type Mail struct {
 	Sender   string `json:"sender"`
 	Receiver string `json:"receiver"`
 	Date     string `json:"date"`
-	FileName string `json:"fileName"` // Tambahkan fileName
+	Subject  string `json:"subject"`
+	FileName string `json:"fileName"`
 }
 
 func getMails(w http.ResponseWriter, r *http.Request) {
@@ -103,7 +105,8 @@ func getMails(w http.ResponseWriter, r *http.Request) {
 				Sender:   envelope.Header.Messaging.UserMessage.PartyInfo.From.PartyId,
 				Receiver: envelope.Header.Messaging.UserMessage.PartyInfo.To.PartyId,
 				Date:     envelope.Header.Messaging.UserMessage.MessageInfo.Timestamp,
-				FileName: file.Name(), // Tambahkan nama file sebagai parameter
+				Subject:  envelope.Header.Messaging.UserMessage.CollaborationInfo.Subject,
+				FileName: file.Name(),
 			})
 		}
 	}
