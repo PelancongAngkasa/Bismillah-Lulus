@@ -12,6 +12,7 @@
         </div>
         <p class="text-gray-600">From: {{ mail.sender }}</p>
         <p class="text-gray-600">To: {{ mail.receiver }}</p>
+        <p class="text-gray-600 font-bold">Subject: {{ mail.subject }}</p> <!-- Tambahkan ini -->
       </div>
 
       <!-- Body -->
@@ -65,6 +66,7 @@ export default {
             sender: data.sender || "Unknown Sender",
             receiver: data.receiver || "Unknown Receiver",
             date: new Date(data.date).toLocaleString(),
+            subject: data.subject || "No subject available", // Tambahkan ini
             message: data.content || "No message content available",
             attachment: data.attachment || null,
           };
