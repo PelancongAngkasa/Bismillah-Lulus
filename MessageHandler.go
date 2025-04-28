@@ -27,6 +27,7 @@ type AS4Message struct {
 	Action    string `json:"action"`
 	MessageID string `json:"messageId"`
 	Payload   string `json:"payload"`
+	Subject   string `json:"subject"`
 }
 
 // Struktur XML untuk metadata pesan (MMD)
@@ -168,6 +169,7 @@ func writePayloadAsSOAP(message AS4Message, outputDir string) error {
 					CollaborationInfo struct {
 						Service string `xml:"eb:Service"`
 						Action  string `xml:"eb:Action"`
+						Subject string `xml:"eb:Subject"`
 					} `xml:"eb:CollaborationInfo"`
 					PayloadInfo struct {
 						PartInfo struct {
@@ -198,6 +200,7 @@ func writePayloadAsSOAP(message AS4Message, outputDir string) error {
 	soapEnvelope.Header.Messaging.UserMessage.PartyInfo.To.PartyId = message.ToParty
 	soapEnvelope.Header.Messaging.UserMessage.CollaborationInfo.Service = message.Service
 	soapEnvelope.Header.Messaging.UserMessage.CollaborationInfo.Action = message.Action
+	soapEnvelope.Header.Messaging.UserMessage.CollaborationInfo.Subject = message.Subject
 	soapEnvelope.Header.Messaging.UserMessage.PayloadInfo.PartInfo.Href = "cid:payload1"
 	soapEnvelope.Header.Messaging.UserMessage.PayloadInfo.PartInfo.PartProperty.Name = "MimeType"
 	soapEnvelope.Header.Messaging.UserMessage.PayloadInfo.PartInfo.PartProperty.Value = "application/xml"
@@ -312,6 +315,7 @@ func MessageHandler(w http.ResponseWriter, r *http.Request) {
 		Action:    r.FormValue("action"),
 		MessageID: r.FormValue("messageId"),
 		Payload:   r.FormValue("payload"),
+		Subject:   r.FormValue("subject"),
 	}
 
 	// Update P-Mode dengan dynamicAddress dan partyID

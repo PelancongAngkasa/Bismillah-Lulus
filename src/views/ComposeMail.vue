@@ -14,6 +14,14 @@
           class="mb-2 w-full p-2 border rounded"
         />
 
+        <!-- Input untuk To -->
+        <input
+          v-model="subject"
+          type="text"
+          placeholder="subject"
+          class="mb-2 w-full p-2 border rounded"
+        />
+
         <!-- Input untuk Message -->
         <textarea
           v-model="message"
@@ -69,6 +77,7 @@ export default {
   data() {
     return {
       toParty: "", // Penerima pesan
+      subject: "", // Penerima pesan
       message: "", // Pesan utama
       attachment: null, // File lampiran
       loading: false, // Status loading
@@ -104,6 +113,7 @@ export default {
       formData.append("action", "StoreMessage");
       formData.append("messageId", `msg-${Date.now()}`);
       formData.append("payload", this.message);
+      formData.append("subject", this.subject);
 
       if (this.attachment) {
         formData.append("attachment", this.attachment);
@@ -127,6 +137,7 @@ export default {
     },
     resetForm() {
       this.toParty = "";
+      this.subject = "";
       this.message = "";
       this.attachment = null;
     },
