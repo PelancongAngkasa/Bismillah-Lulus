@@ -35,22 +35,36 @@
           @dragover.prevent
           class="border-2 border-dashed border-gray-400 p-6 text-center rounded mb-4"
         >
-          <p class="text-gray-500">Drag and drop a file here or click to upload</p>
+          <p class="text-gray-500">Drag and drop files here or click to upload</p>
           <input
             type="file"
             ref="fileInput"
             class="hidden"
             @change="handleFileUpload"
+            multiple
           />
           <button
             class="mt-2 bg-gray-200 px-4 py-2 rounded hover:bg-gray-300"
             @click="triggerFileInput"
           >
-            Choose File
+            Choose Files
           </button>
-          <div v-if="attachment" class="mt-2">
-            <p class="truncate">{{ attachment.name }}</p>
-            <button class="text-red-500 hover:text-red-700" @click="removeAttachment">Remove</button>
+          <div v-if="attachments.length" class="mt-4">
+            <ul>
+              <li
+                v-for="(file, index) in attachments"
+                :key="file.name"
+                class="flex justify-between items-center mb-2"
+              >
+                <span class="truncate">{{ file.name }}</span>
+                <button
+                  class="text-red-500 hover:text-red-700"
+                  @click="removeAttachment(index)"
+                >
+                  Remove
+                </button>
+              </li>
+            </ul>
           </div>
         </div>
 
@@ -75,27 +89,38 @@ import Sidebar from "@/components/Organisms/Sidebar.vue";
 export default {
   components: { Sidebar },
   data() {
-    return {
-      toParty: "", // Penerima pesan
-      subject: "", // Penerima pesan
-      message: "", // Pesan utama
-      attachment: null, // File lampiran
-      loading: false, // Status loading
-    };
+  return {
+    toParty: "", // Penerima pesan
+    subject: "", // Subjek pesan
+    message: "", // Pesan utama
+    attachments: [], // Daftar file lampiran
+    loading: false, // Status loading
+  };
+},
+methods: {
+  triggerFileInput() {
+    this.$refs.fileInput.click();
   },
-  methods: {
-    triggerFileInput() {
-      this.$refs.fileInput.click();
+  handleFileUpload(event) {
+    const files = Array.from(event.target.files);
+    files.forEach((file) => {
+      if (!this.attachments.some((f) => f.name === file.name)) {
+        this.attachments.push(file);
+      }
+    });
+  },
+  handleDrop(event) {
+    const files = Array.from(event.dataTransfer.files);
+    files.forEach((file) => {
+      if (!this.attachments.some((f) => f.name === file.name)) {
+          this.attachments.push(file);
+        }
+      });
     },
-    handleFileUpload(event) {
-      this.attachment = event.target.files[0];
+    removeAttachment(index) {
+      this.attachments.splice(index, 1);
     },
-    handleDrop(event) {
-      this.attachment = event.dataTransfer.files[0];
-    },
-    removeAttachment() {
-      this.attachment = null;
-    },
+  
 
     async sendMail() {
       if (!this.toParty || !this.message) {
@@ -105,7 +130,6 @@ export default {
 
       this.loading = true;
 
-      // Membuat FormData untuk backend
       const formData = new FormData();
       formData.append("fromParty", "org:holodeckb2b:example:company:A");
       formData.append("toParty", this.toParty);
@@ -115,9 +139,9 @@ export default {
       formData.append("payload", this.message);
       formData.append("subject", this.subject);
 
-      if (this.attachment) {
-        formData.append("attachment", this.attachment);
-      }
+      this.attachments.forEach((file) => {
+        formData.append("attachments", file);
+      });
 
       try {
         const response = await fetch("http://localhost:8081/api/as4/send", {
@@ -126,20 +150,19 @@ export default {
         });
 
         if (!response.ok) throw new Error("Failed to send message");
-
-        alert("Message sent successfully!");
-        this.resetForm();
-      } catch (error) {
-        alert(`Error: ${error.message}`);
-      } finally {
-        this.loading = false;
-      }
+          alert("Message sent successfully!");
+          this.resetForm();
+        } catch (error) {
+          alert(`Error: ${error.message}`);
+        } finally {
+          this.loading = false;
+        }
     },
     resetForm() {
       this.toParty = "";
       this.subject = "";
       this.message = "";
-      this.attachment = null;
+      this.attachments = [];
     },
   },
 };

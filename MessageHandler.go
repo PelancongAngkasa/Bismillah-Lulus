@@ -56,27 +56,28 @@ type MessageMetaData struct {
 func saveFile(file multipart.File, header *multipart.FileHeader, destDir string) (string, error) {
 	destPath := filepath.Join(destDir, header.Filename)
 
-	// Detect MIME type
-	buffer := make([]byte, 512)
-	if _, err := file.Read(buffer); err != nil {
+	// Baca seluruh isi file ke dalam buffer
+	fileContent, err := io.ReadAll(file)
+	if err != nil {
 		return "", fmt.Errorf("failed to read file: %v", err)
 	}
-	file.Seek(0, io.SeekStart) // Reset file reader position
-	mimeType := http.DetectContentType(buffer)
 
-	// Validate MIME type
+	// Deteksi MIME type dari buffer
+	mimeType := http.DetectContentType(fileContent)
+
+	// Validasi MIME type
 	if mimeType != "image/jpeg" && mimeType != "image/png" && mimeType != "application/pdf" {
 		return "", fmt.Errorf("unsupported file type: %s", mimeType)
 	}
 
-	// Save file
+	// Simpan file ke disk
 	outFile, err := os.Create(destPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create file: %v", err)
 	}
 	defer outFile.Close()
 
-	if _, err := io.Copy(outFile, file); err != nil {
+	if _, err := outFile.Write(fileContent); err != nil {
 		return "", fmt.Errorf("failed to save file: %v", err)
 	}
 
@@ -217,7 +218,7 @@ func writePayloadAsSOAP(message AS4Message, outputDir string) error {
 }
 
 // Fungsi untuk membuat file MMD
-func writeMMDFile(message AS4Message, attachmentFileName string, mimeType string, outputDir string) error {
+func writeMMDFile(message AS4Message, attachmentFileNames []string, mimeTypes []string, outputDir string) error {
 	// Direktori untuk payload
 	payloadDir := filepath.Join(outputDir, "payloads")
 	if _, err := os.Stat(payloadDir); os.IsNotExist(err) {
@@ -256,15 +257,15 @@ func writeMMDFile(message AS4Message, attachmentFileName string, mimeType string
 		Location:    soapPayloadPath,
 	})
 
-	// Jika ada attachment, tambahkan ke PartInfo
-	if attachmentFileName != "" {
+	// Tambahkan PartInfo untuk setiap attachment
+	for i, attachmentFileName := range attachmentFileNames {
 		mmd.PayloadInfo.PartInfo = append(mmd.PayloadInfo.PartInfo, struct {
 			Containment string `xml:"containment,attr"`
 			MimeType    string `xml:"mimeType,attr"`
 			Location    string `xml:"location,attr"`
 		}{
-			Containment: "attachment",
-			MimeType:    mimeType,
+			Containment: "attachments",
+			MimeType:    mimeTypes[i],
 			Location:    filepath.Join("payloads", attachmentFileName),
 		})
 	}
@@ -302,7 +303,7 @@ func MessageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
+	if err := r.ParseMultipartForm(20 << 20); err != nil { // Maksimal 20 MB
 		http.Error(w, "Unable to parse form data", http.StatusBadRequest)
 		return
 	}
@@ -332,21 +333,42 @@ func MessageHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	attachmentFileName := ""
-	mimeType := ""
+	attachmentFileNames := []string{}
+	totalSize := int64(0)
+	mimeTypes := []string{}
 
-	// Tangani file attachment jika ada
-	if attachmentFile, fileHeader, err := r.FormFile("attachment"); err == nil {
-		defer attachmentFile.Close()
-		attachmentFileName, err = saveFile(attachmentFile, fileHeader, payloadDir)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to save file: %v", err), http.StatusInternalServerError)
+	// Tangani file attachment
+	for i, fileHeader := range r.MultipartForm.File["attachments"] {
+		if i >= 5 { // Batasi maksimal 5 file
+			http.Error(w, "Too many attachments (maximum is 5)", http.StatusBadRequest)
 			return
 		}
-		mimeType = fileHeader.Header.Get("Content-Type")
-		log.Printf("Attachment saved: %s (MIME: %s)", attachmentFileName, mimeType)
-	} else {
-		log.Println("No attachment provided; using only payload.")
+
+		file, err := fileHeader.Open()
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to open attachment: %v", err), http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+
+		// Hitung ukuran file
+		fileSize := fileHeader.Size
+		totalSize += fileSize
+		if totalSize > 20<<20 { // Batasi total ukuran file maksimal 20 MB
+			http.Error(w, "Total attachment size exceeds 20 MB", http.StatusBadRequest)
+			return
+		}
+
+		// Simpan file menggunakan fungsi saveFile
+		attachmentFileName, err := saveFile(file, fileHeader, payloadDir)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to save attachment: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		attachmentFileNames = append(attachmentFileNames, attachmentFileName)
+		mimeTypes = append(mimeTypes, fileHeader.Header.Get("Content-Type"))
+		log.Printf("Attachment saved: %s (Size: %d bytes)", attachmentFileName, fileSize)
 	}
 
 	// Tulis file SOAP payload
@@ -357,7 +379,7 @@ func MessageHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Tulis file MMD (metadata)
 	outputDir := "C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/data/msg_out"
-	if err := writeMMDFile(message, attachmentFileName, mimeType, outputDir); err != nil {
+	if err := writeMMDFile(message, attachmentFileNames, mimeTypes, outputDir); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create MMD file: %v", err), http.StatusInternalServerError)
 		return
 	}
