@@ -12,20 +12,63 @@
         </div>
         <p class="text-gray-600">From: {{ mail.sender }}</p>
         <p class="text-gray-600">To: {{ mail.receiver }}</p>
-        <p class="text-gray-600 font-bold">Subject: {{ mail.subject }}</p> <!-- Tambahkan ini -->
+        <p class="text-gray-600 font-bold">Subject: {{ mail.subject }}</p>
       </div>
 
       <!-- Body -->
       <div class="mb-6">
         <p class="text-lg text-gray-800 mb-4">{{ mail.message }}</p>
-        <a
-          v-if="mail.attachment"
-          :href="mail.attachment"
-          target="_blank"
-          class="text-blue-500 underline"
-        >
-          Download Attachment
-        </a>
+
+        <!-- Attachments Table -->
+        <div v-if="mail.attachments && mail.attachments.length > 0" class="mt-6">
+          <h3 class="text-lg font-semibold mb-2">Attachments:</h3>
+          <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+            <thead>
+              <tr class="bg-gray-100 text-left text-sm font-medium text-gray-700">
+                <th class="p-2 border">File Name</th>
+                <th class="p-2 border">Type</th>
+                <th class="p-2 border">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="attachment in mail.attachments" :key="attachment.path" class="text-sm text-gray-700">
+                <td class="p-2 border">{{ attachment.name }}</td>
+                <td class="p-2 border">{{ attachment.mimeType }}</td>
+                <td class="p-2 border space-x-2">
+                  <button v-if="canPreview(attachment.mimeType)"
+                          @click="previewFile(attachment)"
+                          class="text-blue-500 hover:text-blue-700">
+                    Preview
+                  </button>
+                  <a :href="`http://localhost:9092/download?id=${attachment.path}&name=${attachment.name}`"
+                     class="text-green-500 hover:text-green-700"
+                     download>
+                    Download
+                  </a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- File Preview Modal -->
+        <div v-if="showPreview" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div class="bg-white rounded-lg p-4 max-w-4xl w-full">
+            <div class="flex justify-between mb-4">
+              <h3 class="text-lg font-semibold">{{ previewFile.name }}</h3>
+              <button @click="showPreview = false" class="text-gray-500 hover:text-gray-700">
+                Close
+              </button>
+            </div>
+            <div class="max-h-[80vh] overflow-auto">
+              <img v-if="isImage(previewFile.mimeType)" :src="getFileUrl(previewFile)" class="max-w-full">
+              <iframe v-else-if="isPDF(previewFile.mimeType)" 
+                      :src="getFileUrl(previewFile)"
+                      class="w-full h-[70vh]">
+              </iframe>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Action Buttons -->
@@ -35,10 +78,12 @@
       </div>
     </div>
   </div>
+
   <div v-else class="flex h-screen items-center justify-center">
     <p>Loading mail...</p>
   </div>
 </template>
+
 
 <script>
 import Sidebar from "@/components/Organisms/Sidebar.vue";
@@ -49,8 +94,11 @@ export default {
   data() {
     return {
       mail: null,
+      showPreview: false,
+      previewFile: null,
     };
   },
+
   methods: {
     fetchMail(mailId) {
       fetch(`http://localhost:9092/api/mail?id=${mailId}`)
@@ -61,14 +109,24 @@ export default {
           return response.json();
         })
         .then((data) => {
+          // Membuat array attachments jika ada attachment
+          let attachments = [];
+          if (data.attachment) {
+            attachments.push({
+              name: data.attachment.split('/').pop(), // Mengambil nama file dari path
+              path: data.attachment,
+              mimeType: this.getMimeType(data.attachment),
+            });
+          }
+
           this.mail = {
             id: data.id,
             sender: data.sender || "Unknown Sender",
             receiver: data.receiver || "Unknown Receiver",
             date: new Date(data.date).toLocaleString(),
-            subject: data.subject || "No subject available", // Tambahkan ini
+            subject: data.subject || "No subject available",
             message: data.content || "No message content available",
-            attachment: data.attachment || null,
+            attachments: attachments, // Menambahkan array attachments
           };
         })
         .catch((error) => {
@@ -76,12 +134,49 @@ export default {
           alert("Failed to load mail details. Please try again later.");
         });
     },
+
+    // Tambahkan method baru untuk menentukan MIME type
+    getMimeType(filename) {
+      if (filename.toLowerCase().endsWith('.pdf')) {
+        return 'application/pdf';
+      } else if (filename.toLowerCase().match(/\.(jpg|jpeg|png|gif)$/)) {
+        return 'image/' + filename.toLowerCase().split('.').pop();
+      }
+      return 'application/octet-stream';
+    },
     replyMail() {
       this.$router.push("/compose");
     },
     deleteMail() {
       alert("Mail Deleted!");
     },
+
+    getFileIcon(mimeType) {
+      if (mimeType.startsWith('image/')) return 'fas fa-image';
+      if (mimeType === 'application/pdf') return 'fas fa-file-pdf';
+      return 'fas fa-file';
+    },
+
+    canPreview(mimeType) {
+      return this.isImage(mimeType) || this.isPDF(mimeType);
+    },
+
+    isImage(mimeType) {
+      return mimeType.startsWith('image/');
+    },
+
+    isPDF(mimeType) {
+      return mimeType === 'application/pdf';
+    },
+
+    previewFile(file) {
+      this.previewFile = file;
+      this.showPreview = true;
+    },
+
+    getFileUrl(file) {
+      return `http://localhost:9092/download?id=${file.path}&name=${file.name}`;
+    }
   },
   created() {
     const mailId = this.$route.params.id;

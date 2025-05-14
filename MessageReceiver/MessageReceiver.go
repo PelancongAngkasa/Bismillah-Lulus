@@ -33,10 +33,10 @@ type SOAPEnvelope struct {
 					Subject string `xml:"Subject"`
 				} `xml:"CollaborationInfo"`
 				PayloadInfo struct {
-					PartInfo struct {
+					PartInfos []struct {
 						Href           string `xml:"href,attr"`
 						PartProperties struct {
-							Property struct {
+							Properties []struct {
 								Name  string `xml:"name,attr"`
 								Value string `xml:",chardata"`
 							} `xml:"Property"`
