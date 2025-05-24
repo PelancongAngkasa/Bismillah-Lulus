@@ -14,11 +14,11 @@
           class="mb-2 w-full p-2 border rounded"
         />
 
-        <!-- Input untuk To -->
+        <!-- Input untuk Subject -->
         <input
           v-model="subject"
           type="text"
-          placeholder="subject"
+          placeholder="Subject"
           class="mb-2 w-full p-2 border rounded"
         />
 
@@ -49,31 +49,45 @@
           >
             Choose Files
           </button>
+          
+          <!-- Enhanced Attachment Preview -->
           <div v-if="attachments.length" class="mt-4">
-            <ul>
+            <h3 class="text-sm font-semibold text-gray-700 mb-2">Attachments:</h3>
+            <ul class="space-y-2">
               <li
                 v-for="(file, index) in attachments"
-                :key="file.name"
-                class="flex justify-between items-center mb-2"
+                :key="file.name + index"
+                class="flex items-center justify-between p-2 bg-gray-50 rounded"
               >
-                <span class="truncate">{{ file.name }}</span>
+                <div class="flex items-center truncate">
+                  <span class="text-sm font-medium truncate">{{ file.name }}</span>
+                  <span class="text-xs text-gray-500 ml-2">
+                    ({{ formatFileSize(file.size) }})
+                  </span>
+                </div>
                 <button
-                  class="text-red-500 hover:text-red-700"
+                  class="text-red-500 hover:text-red-700 ml-2"
                   @click="removeAttachment(index)"
+                  title="Remove attachment"
                 >
-                  Remove
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                  </svg>
                 </button>
               </li>
             </ul>
+            <p class="text-xs text-gray-500 mt-2">
+              Total: {{ attachments.length }} file(s), {{ formatFileSize(totalAttachmentSize) }}
+            </p>
           </div>
         </div>
 
         <!-- Tombol Kirim -->
         <div class="flex justify-end">
           <button
-            :disabled="loading"
+            :disabled="loading || !canSend"
             @click="sendMail"
-            class="bg-blue-500 text-white px-4 py-2 rounded"
+            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed"
           >
             {{ loading ? "Sending..." : "Send" }}
           </button>
@@ -89,30 +103,36 @@ import Sidebar from "@/components/Organisms/Sidebar.vue";
 export default {
   components: { Sidebar },
   data() {
-  return {
-    toParty: "", // Penerima pesan
-    subject: "", // Subjek pesan
-    message: "", // Pesan utama
-    attachments: [], // Daftar file lampiran
-    loading: false, // Status loading
-  };
-},
-methods: {
-  triggerFileInput() {
-    this.$refs.fileInput.click();
+    return {
+      toParty: "",
+      subject: "",
+      message: "",
+      attachments: [],
+      loading: false,
+    };
   },
-  handleFileUpload(event) {
-    const files = Array.from(event.target.files);
-    files.forEach((file) => {
-      if (!this.attachments.some((f) => f.name === file.name)) {
-        this.attachments.push(file);
-      }
-    });
+  computed: {
+    totalAttachmentSize() {
+      return this.attachments.reduce((total, file) => total + file.size, 0);
+    },
+    canSend() {
+      return this.toParty && this.message && !this.loading;
+    }
   },
-  handleDrop(event) {
-    const files = Array.from(event.dataTransfer.files);
-    files.forEach((file) => {
-      if (!this.attachments.some((f) => f.name === file.name)) {
+  methods: {
+    triggerFileInput() {
+      this.$refs.fileInput.click();
+    },
+    handleFileUpload(event) {
+      this.addFiles(Array.from(event.target.files));
+      this.$refs.fileInput.value = ''; // Reset input
+    },
+    handleDrop(event) {
+      this.addFiles(Array.from(event.dataTransfer.files));
+    },
+    addFiles(files) {
+      files.forEach((file) => {
+        if (!this.attachments.some(f => f.name === file.name && f.size === file.size)) {
           this.attachments.push(file);
         }
       });
@@ -120,13 +140,15 @@ methods: {
     removeAttachment(index) {
       this.attachments.splice(index, 1);
     },
-  
-
+    formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    },
     async sendMail() {
-      if (!this.toParty || !this.message) {
-        alert("To and Message fields are required.");
-        return;
-      }
+      if (!this.canSend) return;
 
       this.loading = true;
 
@@ -140,7 +162,7 @@ methods: {
       formData.append("subject", this.subject);
 
       this.attachments.forEach((file) => {
-        formData.append("attachments", file);
+        formData.append("attachments", file, file.name);
       });
 
       try {
@@ -149,14 +171,19 @@ methods: {
           body: formData,
         });
 
-        if (!response.ok) throw new Error("Failed to send message");
-          alert("Message sent successfully!");
-          this.resetForm();
-        } catch (error) {
-          alert(`Error: ${error.message}`);
-        } finally {
-          this.loading = false;
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || "Failed to send message");
         }
+        
+        alert('Message sent successfully!');
+        this.resetForm();
+      } catch (error) {
+        console.error('Error sending message:', error);
+        alert(error.message || 'Failed to send message');
+      } finally {
+        this.loading = false;
+      }
     },
     resetForm() {
       this.toParty = "";
@@ -167,3 +194,11 @@ methods: {
   },
 };
 </script>
+
+
+<style scoped>
+/* Optional: Add some transitions for better UX */
+button {
+  transition: background-color 0.2s ease;
+}
+</style>

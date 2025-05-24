@@ -1,15 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"log"
-	"mime/multipart"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -19,7 +20,6 @@ import (
 
 var db *sql.DB
 
-// Struktur pesan yang diterima melalui API
 type AS4Message struct {
 	FromParty string `json:"fromParty"`
 	ToParty   string `json:"toParty"`
@@ -30,58 +30,32 @@ type AS4Message struct {
 	Subject   string `json:"subject"`
 }
 
-// Struktur XML untuk metadata pesan (MMD)
 type MessageMetaData struct {
-	XMLName           xml.Name `xml:"MessageMetaData"`
-	XMLNS             string   `xml:"xmlns,attr"`
-	SchemaLocation    string   `xml:"xsi:schemaLocation,attr"`
-	XSI               string   `xml:"xmlns:xsi,attr"`
+	XMLName        xml.Name `xml:"MessageMetaData"`
+	XMLNS          string   `xml:"xmlns,attr"`
+	SchemaLocation string   `xml:"xsi:schemaLocation,attr"`
+	XSI            string   `xml:"xmlns:xsi,attr"`
+	MessageInfo    struct {
+		Timestamp string `xml:"Timestamp"`
+		MessageId string `xml:"MessageId"`
+	} `xml:"MessageInfo"`
 	CollaborationInfo struct {
 		AgreementRef struct {
 			PMode string `xml:"pmode,attr"`
 		} `xml:"AgreementRef"`
+		Service        string `xml:"Service"`
+		Action         string `xml:"Action"`
 		ConversationId string `xml:"ConversationId"`
 	} `xml:"CollaborationInfo"`
 	PayloadInfo struct {
-		DeleteFilesAfterSubmit bool       `xml:"deleteFilesAfterSubmit,attr"`
-		PartInfo               []struct { // Ubah menjadi array
+		DeleteFilesAfterSubmit bool `xml:"deleteFilesAfterSubmit,attr"`
+		PartInfo               []struct {
+			URI         string `xml:"uri,attr"`
 			Containment string `xml:"containment,attr"`
 			MimeType    string `xml:"mimeType,attr"`
 			Location    string `xml:"location,attr"`
 		} `xml:"PartInfo"`
 	} `xml:"PayloadInfo"`
-}
-
-// saveFile saves an uploaded file to the specified directory
-func saveFile(file multipart.File, header *multipart.FileHeader, destDir string) (string, error) {
-	destPath := filepath.Join(destDir, header.Filename)
-
-	// Baca seluruh isi file ke dalam buffer
-	fileContent, err := io.ReadAll(file)
-	if err != nil {
-		return "", fmt.Errorf("failed to read file: %v", err)
-	}
-
-	// Deteksi MIME type dari buffer
-	mimeType := http.DetectContentType(fileContent)
-
-	// Validasi MIME type
-	if mimeType != "image/jpeg" && mimeType != "image/png" && mimeType != "application/pdf" {
-		return "", fmt.Errorf("unsupported file type: %s", mimeType)
-	}
-
-	// Simpan file ke disk
-	outFile, err := os.Create(destPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to create file: %v", err)
-	}
-	defer outFile.Close()
-
-	if _, err := outFile.Write(fileContent); err != nil {
-		return "", fmt.Errorf("failed to save file: %v", err)
-	}
-
-	return header.Filename, nil
 }
 
 func getAddressFromDB(partyName string) (string, string, error) {
@@ -96,7 +70,6 @@ func getAddressFromDB(partyName string) (string, string, error) {
 	return address, partyID, nil
 }
 
-// Fungsi untuk menggantikan placeholder dalam file template
 func replacePlaceholders(template, address, partyID string) (string, error) {
 	if template == "" {
 		return "", fmt.Errorf("template is empty")
@@ -106,35 +79,27 @@ func replacePlaceholders(template, address, partyID string) (string, error) {
 	return replaced, nil
 }
 
-// Fungsi untuk memperbarui P-Mode dengan nilai dynamicAddress dan partyID
 func updatePModeTemplate(partyName string) error {
-
-	// Ambil dynamicAddress dan partyID dari database
 	dynamicAddress, partyID, err := getAddressFromDB(partyName)
 	if err != nil {
 		return fmt.Errorf("failed to get address and partyID for party %s: %v", partyName, err)
 	}
 	log.Printf("Dynamic Address: %s, Party ID: %s", dynamicAddress, partyID)
 
-	// Path file template P-Mode (hardcoded untuk mode push)
 	templateFile := `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\examples\pmodes\pm-push.xml`
 
-	// Baca template P-Mode
 	pmodeContent, err := os.ReadFile(templateFile)
 	if err != nil {
 		return fmt.Errorf("failed to read P-Mode template: %v", err)
 	}
 
-	// Gantikan placeholder dengan dynamicAddress dan partyID
 	updatedContent, err := replacePlaceholders(string(pmodeContent), dynamicAddress, partyID)
 	if err != nil {
 		return fmt.Errorf("failed to replace placeholders in template: %v", err)
 	}
 
-	// Path untuk file P-Mode aktif
 	activePMode := `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\repository\pmodes\current-pmode.xml`
 
-	// Overwrite P-Mode aktif dengan konten yang diperbarui
 	if err := os.WriteFile(activePMode, []byte(updatedContent), 0644); err != nil {
 		return fmt.Errorf("failed to overwrite active P-Mode file: %v", err)
 	}
@@ -143,15 +108,14 @@ func updatePModeTemplate(partyName string) error {
 	return nil
 }
 
-func writePayloadAsSOAP(message AS4Message, outputDir string) error {
-	payloadFileName := fmt.Sprintf("%s_payload.xml", message.MessageID)
-	payloadPath := filepath.Join(outputDir, payloadFileName)
+func writePayloadAsSOAP(message AS4Message, outputDir, soapPayloadFileName string) error {
+	payloadPath := filepath.Join(outputDir, soapPayloadFileName)
 
-	// Struktur SOAP Envelope
-	soapEnvelope := struct {
+	type SoapEnvelope struct {
 		XMLName xml.Name `xml:"SOAP:Envelope"`
 		SOAP    string   `xml:"xmlns:SOAP,attr"`
 		EB      string   `xml:"xmlns:eb,attr"`
+		MyNS    string   `xml:"xmlns:myns,attr"`
 		Header  struct {
 			Messaging struct {
 				UserMessage struct {
@@ -172,105 +136,94 @@ func writePayloadAsSOAP(message AS4Message, outputDir string) error {
 						Action  string `xml:"eb:Action"`
 						Subject string `xml:"eb:Subject"`
 					} `xml:"eb:CollaborationInfo"`
-					PayloadInfo struct {
-						PartInfo struct {
-							Href         string `xml:"eb:href,attr"`
-							PartProperty struct {
-								Name  string `xml:"name,attr"`
-								Value string `xml:",chardata"`
-							} `xml:"eb:PartProperties>eb:Property"`
-						} `xml:"eb:PartInfo"`
-					} `xml:"eb:PayloadInfo"`
 				} `xml:"eb:UserMessage"`
 			} `xml:"eb:Messaging"`
 		} `xml:"SOAP:Header"`
 		Body struct {
 			MessageContent struct {
-				Document string `xml:"myns:Document"`
+				Document string `xml:",innerxml"`
 			} `xml:"myns:MessageContent"`
 		} `xml:"SOAP:Body"`
-	}{
-		SOAP: "http://www.w3.org/2003/05/soap-envelope",
-		EB:   "http://docs.oasis-open.org/ebxml-msg/ebms/v3.0/ns/core/200704",
 	}
 
-	// Isi Header SOAP
-	soapEnvelope.Header.Messaging.UserMessage.MessageInfo.MessageId = message.MessageID
-	soapEnvelope.Header.Messaging.UserMessage.MessageInfo.Timestamp = time.Now().UTC().Format(time.RFC3339)
-	soapEnvelope.Header.Messaging.UserMessage.PartyInfo.From.PartyId = message.FromParty
-	soapEnvelope.Header.Messaging.UserMessage.PartyInfo.To.PartyId = message.ToParty
-	soapEnvelope.Header.Messaging.UserMessage.CollaborationInfo.Service = message.Service
-	soapEnvelope.Header.Messaging.UserMessage.CollaborationInfo.Action = message.Action
-	soapEnvelope.Header.Messaging.UserMessage.CollaborationInfo.Subject = message.Subject
-	soapEnvelope.Header.Messaging.UserMessage.PayloadInfo.PartInfo.Href = "cid:payload1"
-	soapEnvelope.Header.Messaging.UserMessage.PayloadInfo.PartInfo.PartProperty.Name = "MimeType"
-	soapEnvelope.Header.Messaging.UserMessage.PayloadInfo.PartInfo.PartProperty.Value = "application/xml"
+	soapEnv := SoapEnvelope{
+		SOAP: "http://www.w3.org/2003/05/soap-envelope",
+		EB:   "http://docs.oasis-open.org/ebxml-msg/ebms/v3.0/ns/core/200704",
+		MyNS: "http://example.org/myns",
+	}
 
-	// Isi Body SOAP
-	soapEnvelope.Body.MessageContent.Document = message.Payload
+	// Isi Header
+	soapEnv.Header.Messaging.UserMessage.MessageInfo.MessageId = message.MessageID
+	soapEnv.Header.Messaging.UserMessage.MessageInfo.Timestamp = time.Now().UTC().Format(time.RFC3339)
+	soapEnv.Header.Messaging.UserMessage.PartyInfo.From.PartyId = message.FromParty
+	soapEnv.Header.Messaging.UserMessage.PartyInfo.To.PartyId = message.ToParty
+	soapEnv.Header.Messaging.UserMessage.CollaborationInfo.Service = message.Service
+	soapEnv.Header.Messaging.UserMessage.CollaborationInfo.Action = message.Action
+	soapEnv.Header.Messaging.UserMessage.CollaborationInfo.Subject = message.Subject
 
-	// Serialize ke file
-	soapXML, err := xml.MarshalIndent(soapEnvelope, "", "  ")
+	// Isi Body dengan XML langsung (bisa kosong)
+	soapEnv.Body.MessageContent.Document = message.Payload
+
+	soapXML, err := xml.MarshalIndent(soapEnv, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal SOAP payload: %v", err)
 	}
-	return os.WriteFile(payloadPath, soapXML, 0644)
+
+	var buffer bytes.Buffer
+	buffer.WriteString(xml.Header)
+	buffer.Write(soapXML)
+
+	return os.WriteFile(payloadPath, buffer.Bytes(), 0644)
 }
 
-// Fungsi untuk membuat file MMD
-func writeMMDFile(message AS4Message, attachmentFileNames []string, mimeTypes []string, outputDir string) error {
-	// Direktori untuk payload
-	payloadDir := filepath.Join(outputDir, "payloads")
-	if _, err := os.Stat(payloadDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(payloadDir, os.ModePerm); err != nil {
-			return fmt.Errorf("failed to create payload directory: %v", err)
-		}
-	}
-
-	// Buat file SOAP envelope
-	err := writePayloadAsSOAP(message, payloadDir)
-	if err != nil {
-		return fmt.Errorf("failed to write SOAP payload: %v", err)
-	}
-
-	soapPayloadFileName := fmt.Sprintf("%s_payload.xml", message.MessageID)
-	soapPayloadPath := filepath.Join("payloads", soapPayloadFileName)
-
-	// Metadata MMD
+func writeMMDFile(message AS4Message, soapFileName string, attachmentFileNames []string, mimeTypes []string, outputDir string) error {
 	mmd := MessageMetaData{
 		XMLNS:          "http://holodeck-b2b.org/schemas/2014/06/mmd",
 		XSI:            "http://www.w3.org/2001/XMLSchema-instance",
 		SchemaLocation: "http://holodeck-b2b.org/schemas/2014/06/mmd ../repository/xsd/messagemetadata.xsd",
 	}
+
+	mmd.MessageInfo.MessageId = message.MessageID
+	mmd.MessageInfo.Timestamp = time.Now().UTC().Format(time.RFC3339)
+
 	mmd.CollaborationInfo.AgreementRef.PMode = "current-pmode-push"
+	mmd.CollaborationInfo.Service = message.Service
+	mmd.CollaborationInfo.Action = message.Action
 	mmd.CollaborationInfo.ConversationId = "org:holodeckb2b:test:conversation"
+
 	mmd.PayloadInfo.DeleteFilesAfterSubmit = false
 
-	// Tambahkan PartInfo untuk SOAP payload
-	mmd.PayloadInfo.PartInfo = append(mmd.PayloadInfo.PartInfo, struct {
+	type PartInfo struct {
+		URI         string `xml:"uri,attr"`
 		Containment string `xml:"containment,attr"`
 		MimeType    string `xml:"mimeType,attr"`
 		Location    string `xml:"location,attr"`
-	}{
-		Containment: "inline",
-		MimeType:    "application/xml",
-		Location:    soapPayloadPath,
-	})
+	}
 
-	// Tambahkan PartInfo untuk setiap attachment
-	for i, attachmentFileName := range attachmentFileNames {
-		mmd.PayloadInfo.PartInfo = append(mmd.PayloadInfo.PartInfo, struct {
-			Containment string `xml:"containment,attr"`
-			MimeType    string `xml:"mimeType,attr"`
-			Location    string `xml:"location,attr"`
-		}{
-			Containment: "attachments",
-			MimeType:    mimeTypes[i],
-			Location:    filepath.Join("payloads", attachmentFileName),
+	// Tambahkan SOAP payload jika ada
+	if soapFileName != "" {
+		mmd.PayloadInfo.PartInfo = append(mmd.PayloadInfo.PartInfo, PartInfo{
+			URI:         "soapPart",
+			Containment: "attachment",
+			MimeType:    "application/xml",
+			Location:    path.Join("payloads", soapFileName),
 		})
 	}
 
-	// Serialize metadata MMD ke file
+	// Tambahkan attachment dengan URI unik
+	for i, fileName := range attachmentFileNames {
+		mimeType := mimeTypes[i]
+		if mimeType == "" {
+			mimeType = "application/octet-stream"
+		}
+		mmd.PayloadInfo.PartInfo = append(mmd.PayloadInfo.PartInfo, PartInfo{
+			URI:         fmt.Sprintf("part%d", i+1),
+			Containment: "attachment",
+			MimeType:    mimeType,
+			Location:    path.Join("payloads", fileName),
+		})
+	}
+
 	mmdFileName := fmt.Sprintf("%s.mmd", message.MessageID)
 	mmdFilePath := filepath.Join(outputDir, mmdFileName)
 
@@ -279,16 +232,14 @@ func writeMMDFile(message AS4Message, attachmentFileNames []string, mimeTypes []
 		return fmt.Errorf("failed to marshal MMD to XML: %v", err)
 	}
 
-	if err := os.WriteFile(mmdFilePath, mmdXML, 0644); err != nil {
-		return fmt.Errorf("failed to write MMD file: %v", err)
-	}
+	var buffer bytes.Buffer
+	buffer.WriteString(xml.Header)
+	buffer.Write(mmdXML)
 
-	return nil
+	return os.WriteFile(mmdFilePath, buffer.Bytes(), 0644)
 }
 
-// Handler untuk menerima pesan AS4 dan memproses lampiran
 func MessageHandler(w http.ResponseWriter, r *http.Request) {
-	// Preflight CORS handling
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
@@ -303,12 +254,11 @@ func MessageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := r.ParseMultipartForm(20 << 20); err != nil { // Maksimal 20 MB
+	if err := r.ParseMultipartForm(20 << 20); err != nil {
 		http.Error(w, "Unable to parse form data", http.StatusBadRequest)
 		return
 	}
 
-	// Ambil data dari request
 	message := AS4Message{
 		FromParty: r.FormValue("fromParty"),
 		ToParty:   r.FormValue("toParty"),
@@ -319,77 +269,94 @@ func MessageHandler(w http.ResponseWriter, r *http.Request) {
 		Subject:   r.FormValue("subject"),
 	}
 
-	// Update P-Mode dengan dynamicAddress dan partyID
+	// Generate MessageID jika kosong
+	if message.MessageID == "" {
+		message.MessageID = fmt.Sprintf("msg_%d", time.Now().UnixNano())
+	}
+
 	if err := updatePModeTemplate(message.ToParty); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to update P-Mode template: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	payloadDir := "C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/data/msg_out/payloads"
-	if _, err := os.Stat(payloadDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(payloadDir, os.ModePerm); err != nil {
-			http.Error(w, "Failed to create payload directory", http.StatusInternalServerError)
-			return
-		}
+	if err := os.MkdirAll(payloadDir, os.ModePerm); err != nil {
+		http.Error(w, "Failed to create payload directory", http.StatusInternalServerError)
+		return
 	}
 
 	attachmentFileNames := []string{}
-	totalSize := int64(0)
 	mimeTypes := []string{}
+	totalSize := int64(0)
 
-	// Tangani file attachment
-	for i, fileHeader := range r.MultipartForm.File["attachments"] {
-		if i >= 5 { // Batasi maksimal 5 file
-			http.Error(w, "Too many attachments (maximum is 5)", http.StatusBadRequest)
+	files := r.MultipartForm.File["attachments"]
+	if len(files) > 5 {
+		http.Error(w, "Too many attachments (maximum is 5)", http.StatusBadRequest)
+		return
+	}
+
+	// Proses attachments
+	for _, fileHeader := range files {
+		if fileHeader.Size+totalSize > 20<<20 {
+			http.Error(w, "Total attachment size exceeds 20 MB", http.StatusBadRequest)
 			return
 		}
+		totalSize += fileHeader.Size
 
 		file, err := fileHeader.Open()
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to open attachment: %v", err), http.StatusInternalServerError)
 			return
 		}
-		defer file.Close()
 
-		// Hitung ukuran file
-		fileSize := fileHeader.Size
-		totalSize += fileSize
-		if totalSize > 20<<20 { // Batasi total ukuran file maksimal 20 MB
-			http.Error(w, "Total attachment size exceeds 20 MB", http.StatusBadRequest)
-			return
-		}
-
-		// Simpan file menggunakan fungsi saveFile
-		attachmentFileName, err := saveFile(file, fileHeader, payloadDir)
+		destPath := filepath.Join(payloadDir, fileHeader.Filename)
+		destFile, err := os.Create(destPath)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to save attachment: %v", err), http.StatusInternalServerError)
+			file.Close()
+			http.Error(w, fmt.Sprintf("Failed to create file: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		attachmentFileNames = append(attachmentFileNames, attachmentFileName)
-		mimeTypes = append(mimeTypes, fileHeader.Header.Get("Content-Type"))
-		log.Printf("Attachment saved: %s (Size: %d bytes)", attachmentFileName, fileSize)
+		_, err = io.Copy(destFile, file)
+		file.Close()
+		destFile.Close()
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to save file: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		attachmentFileNames = append(attachmentFileNames, fileHeader.Filename)
+		mimeType := fileHeader.Header.Get("Content-Type")
+		if mimeType == "" {
+			mimeType = "application/octet-stream"
+		}
+		mimeTypes = append(mimeTypes, mimeType)
+		log.Printf("Saved attachment: %s (Size: %d bytes, MIME: %s)", fileHeader.Filename, fileHeader.Size, mimeType)
 	}
 
-	// Tulis file SOAP payload
-	if err := writePayloadAsSOAP(message, payloadDir); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to write SOAP payload: %v", err), http.StatusInternalServerError)
-		return
+	var soapPayloadFileName string
+	// Buat SOAP payload hanya jika ada payload atau tidak ada attachment
+	if message.Payload != "" || len(attachmentFileNames) == 0 {
+		soapPayloadFileName = fmt.Sprintf("%s_payload.xml", message.MessageID)
+		if err := writePayloadAsSOAP(message, payloadDir, soapPayloadFileName); err != nil {
+			http.Error(w, fmt.Sprintf("Failed to write SOAP payload: %v", err), http.StatusInternalServerError)
+			return
+		}
 	}
 
-	// Tulis file MMD (metadata)
 	outputDir := "C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/data/msg_out"
-	if err := writeMMDFile(message, attachmentFileNames, mimeTypes, outputDir); err != nil {
+	if err := writeMMDFile(message, soapPayloadFileName, attachmentFileNames, mimeTypes, outputDir); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create MMD file: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Respon sukses
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Message processed successfully"})
+	json.NewEncoder(w).Encode(map[string]string{
+		"message":   "Message processed successfully",
+		"messageId": message.MessageID,
+	})
 }
 
-// Fungsi utama
 func main() {
 	var err error
 	db, err = sql.Open("mysql", "root:@tcp(localhost:3306)/proyekta")
