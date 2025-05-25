@@ -60,6 +60,7 @@
                 Close
               </button>
             </div>
+            <!-- Displaying the file based on its type -->
             <div class="max-h-[80vh] overflow-auto">
               <img v-if="isImage(previewFile.mimeType)" :src="getFileUrl(previewFile)" class="max-w-full">
               <iframe v-else-if="isPDF(previewFile.mimeType)" 

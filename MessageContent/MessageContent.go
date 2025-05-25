@@ -209,6 +209,7 @@ func downloadFile(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	http.HandleFunc("/api/mail", viewMessage)
+	//download
 	http.HandleFunc("/download", downloadFile)                                                                                                                                     // Tambahkan route baru untuk download
 	http.Handle("/attachments/", http.StripPrefix("/attachments/", http.FileServer(http.Dir(`C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-B\data\msg_in`)))) // Serve attachments
 
