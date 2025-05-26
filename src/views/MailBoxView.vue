@@ -24,19 +24,24 @@ import MailList from "@/components/Molecules/MailList.vue";
 
 export default {
   components: { Sidebar, MailList },
-  methods: {
-  viewMail(mailId) {
-    this.$router.push(`/view/${mailId}`);
-    },
-  },
   data() {
     return {
-      mails: [
-        { sender: "Acme Inc.", subject: "Insights: Latest equipment", date: "Feb, 26" },
-        { sender: "Travel Tales", subject: "Adventures & Destinations", date: "March, 26" },
-        { sender: "Delta Enterprises", subject: "Delta Weekly News", date: "Jan, 26" },
-      ],
+      mails: [], // Data pesan akan diambil dari backend
     };
+  },
+  created() {
+    fetch("http://localhost:8082/api/mails")
+      .then((response) => response.json())
+      .then((data) => {
+        this.mails = data;
+      })
+      .catch((error) => console.error("Error fetching mails:", error));
+  },
+  methods: {
+    viewMail(mailId) {
+      // Navigasikan ke URL view dengan ID pesan
+      this.$router.push(`/view/${mailId}`);
+    },
   },
 };
 </script>
