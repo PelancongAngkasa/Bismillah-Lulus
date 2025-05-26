@@ -121,8 +121,8 @@ func getMails(w http.ResponseWriter, r *http.Request) {
 func main() {
 	http.HandleFunc("/api/mails", getMails)
 
-	log.Println("Starting AS4 API server on port 9091...")
-	if err := http.ListenAndServe(":9091", nil); err != nil {
+	log.Println("Starting AS4 API server on port 9092...")
+	if err := http.ListenAndServe(":9092", nil); err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}
 }

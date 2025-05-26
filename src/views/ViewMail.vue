@@ -36,11 +36,11 @@
                 <td class="p-2 border">{{ attachment.mimeType }}</td>
                 <td class="p-2 border space-x-2">
                   <button v-if="canPreview(attachment.mimeType)"
-                          @click="previewFile(attachment)"
+                          @click="openPreview(attachment)"
                           class="text-blue-500 hover:text-blue-700">
                     Preview
                   </button>
-                  <a :href="`http://localhost:9092/download?id=${attachment.path}&name=${attachment.name}`"
+                  <a :href="`http://localhost:9093/download?id=${attachment.path}&name=${attachment.name}`"
                      class="text-green-500 hover:text-green-700"
                      download>
                     Download
@@ -102,7 +102,7 @@ export default {
 
   methods: {
     fetchMail(mailId) {
-      fetch(`http://localhost:9092/api/mail?id=${mailId}`)
+      fetch(`http://localhost:9093/api/mail?id=${mailId}`)
         .then((response) => {
           if (!response.ok) {
             throw new Error(`Failed to fetch mail details: ${response.statusText}`);
@@ -112,12 +112,13 @@ export default {
         .then((data) => {
           // Membuat array attachments jika ada attachment
           let attachments = [];
-          if (data.attachment) {
-            attachments.push({
-              name: data.attachment.split('/').pop(), // Mengambil nama file dari path
-              path: data.attachment,
-              mimeType: this.getMimeType(data.attachment),
-            });
+          if (data.attachments && Array.isArray(data.attachments)) {
+            attachments = data.attachments.map(att => ({
+              name: att.fileName,
+              path: att.fileName,
+              mimeType: att.mimeType,
+              url: att.url
+            }));
           }
 
           this.mail = {
@@ -127,7 +128,7 @@ export default {
             date: new Date(data.date).toLocaleString(),
             subject: data.subject || "No subject available",
             message: data.content || "No message content available",
-            attachments: attachments, // Menambahkan array attachments
+            attachments: attachments,
           };
         })
         .catch((error) => {
@@ -170,13 +171,13 @@ export default {
       return mimeType === 'application/pdf';
     },
 
-    previewFile(file) {
+    openPreview(file) {
       this.previewFile = file;
       this.showPreview = true;
     },
 
     getFileUrl(file) {
-      return `http://localhost:9092/download?id=${file.path}&name=${file.name}`;
+      return `http://localhost:9093/attachments/${file.path}`;
     }
   },
   created() {

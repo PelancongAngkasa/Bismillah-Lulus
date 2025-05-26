@@ -30,7 +30,7 @@ export default {
     };
   },
   created() {
-    fetch("http://localhost:9091/api/mails")
+    fetch("http://localhost:9092/api/mails")
       .then((response) => response.json())
       .then((data) => {
         this.mails = data;
