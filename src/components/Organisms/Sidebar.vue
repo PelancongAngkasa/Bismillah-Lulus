@@ -19,10 +19,8 @@ export default {
     return {
       menuItems: [
         { name: "Inbox", link: "/" },
-        { name: "Starred", link: "#" },
-        { name: "Snoozed", link: "#" },
-        { name: "Sent", link: "#" },
-        { name: "Drafts", link: "#" },
+        { name: "Add Partner", link: "/partner/add" },
+      
       ],
     };
   },

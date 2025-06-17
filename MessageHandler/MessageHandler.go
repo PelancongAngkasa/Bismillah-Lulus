@@ -58,6 +58,12 @@ type MessageMetaData struct {
 	} `xml:"PayloadInfo"`
 }
 
+type Partner struct {
+	PartyID     string `json:"partyid"`
+	Name        string `json:"name"`
+	EndpointURL string `json:"endpoint_url"`
+}
+
 func getAddressFromDB(partyName string) (string, string, error) {
 	query := "SELECT endpoint_url, party_id FROM party WHERE name = ?"
 	var address, partyID string
@@ -357,6 +363,200 @@ func MessageHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func sanitizeFilename(name string) string {
+	replacer := strings.NewReplacer(
+		":", "_", "/", "_", "\\", "_",
+		"*", "_", "?", "_", "\"", "_",
+		"<", "_", ">", "_", "|", "_",
+	)
+	return replacer.Replace(name)
+}
+
+// Fungsi untuk generate PMode dari template
+func GeneratePModeFromTemplate(templatePath, outputPath, senderPartyId string) error {
+	content, err := os.ReadFile(templatePath)
+	if err != nil {
+		return fmt.Errorf("failed to read template: %w", err)
+	}
+	replaced := strings.ReplaceAll(string(content), "${sender}", senderPartyId)
+	return os.WriteFile(outputPath, []byte(replaced), 0644)
+}
+
+// Handler utama untuk nambah partner
+func AddPartnerHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid HTTP method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var data struct {
+		PartyID     string `json:"partyid"`
+		Name        string `json:"name"`
+		EndpointURL string `json:"endpoint_url"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if data.PartyID == "" || data.Name == "" || data.EndpointURL == "" {
+		http.Error(w, "All fields are required", http.StatusBadRequest)
+		return
+	}
+
+	fmt.Printf("Received: partyid=%s, name=%s, endpoint_url=%s\n", data.PartyID, data.Name, data.EndpointURL)
+
+	_, err := db.Exec("INSERT INTO party (party_id, name, endpoint_url) VALUES (?, ?, ?)", data.PartyID, data.Name, data.EndpointURL)
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	templatePath := "C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/examples/pmodes/ex-pm-push-resp.xml"
+	safeName := sanitizeFilename(data.Name)
+	outputPath := fmt.Sprintf("C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/repository/pmodes/pmode-resp-%s.xml", safeName)
+
+	err = GeneratePModeFromTemplate(templatePath, outputPath, data.PartyID)
+	if err != nil {
+		http.Error(w, "Failed to generate PMode file: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Partner added and PMode response generated",
+	})
+}
+
+func GetPartnersHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid HTTP method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	rows, err := db.Query("SELECT party_id, name, endpoint_url FROM party")
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var partners []Partner
+	for rows.Next() {
+		var p Partner
+		if err := rows.Scan(&p.PartyID, &p.Name, &p.EndpointURL); err != nil {
+			http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		partners = append(partners, p)
+	}
+	json.NewEncoder(w).Encode(partners)
+}
+
+// Handler: Update partner
+func UpdatePartnerHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "PUT, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if r.Method != http.MethodPut {
+		http.Error(w, "Invalid HTTP method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var p Partner
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if p.PartyID == "" || p.Name == "" || p.EndpointURL == "" {
+		http.Error(w, "All fields are required", http.StatusBadRequest)
+		return
+	}
+
+	_, err := db.Exec("UPDATE party SET name=?, endpoint_url=? WHERE party_id=?", p.Name, p.EndpointURL, p.PartyID)
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Partner updated"})
+}
+
+// Handler: Delete partner
+func DeletePartnerHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Invalid HTTP method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var p Partner
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if p.PartyID == "" {
+		http.Error(w, "PartyID is required", http.StatusBadRequest)
+		return
+	}
+
+	_, err := db.Exec("DELETE FROM party WHERE party_id=?", p.PartyID)
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Partner deleted"})
+}
+
+func PartnerHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		GetPartnersHandler(w, r)
+	case http.MethodPost:
+		AddPartnerHandler(w, r)
+	case http.MethodPut:
+		UpdatePartnerHandler(w, r)
+	case http.MethodDelete:
+		DeletePartnerHandler(w, r)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
 func main() {
 	var err error
 	db, err = sql.Open("mysql", "root:@tcp(localhost:3306)/proyekta")
@@ -370,6 +570,7 @@ func main() {
 	}
 
 	http.HandleFunc("/api/as4/send", MessageHandler)
+	http.HandleFunc("/api/partner", PartnerHandler)
 	log.Println("Starting server on http://localhost:8081")
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }

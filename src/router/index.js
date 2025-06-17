@@ -18,8 +18,12 @@ const router = createRouter({
       path: '/view/:id',
       name: 'view',
       component: () => import('../views/ViewMail.vue'),
+    },
+    {
+      path: '/partner/add',
+      name: 'Add Partner',
+      component: () => import('../views/AddPartner.vue'),
     }
-    
   ],
 })
 
