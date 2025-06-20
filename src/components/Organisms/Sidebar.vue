@@ -1,6 +1,6 @@
 <template>
   <aside class="bg-black text-white w-64 h-screen p-6">
-    <h1 class="text-xl font-bold mb-6">Gmail</h1>
+    <h1 class="text-xl font-bold mb-6">SanapatiLink</h1>
     <button 
       @click="$router.push('/compose')" 
       class="mb-4 w-full bg-blue-500 text-white py-2 px-4 rounded">
@@ -20,7 +20,7 @@ export default {
       menuItems: [
         { name: "Inbox", link: "/" },
         { name: "Add Partner", link: "/partner/add" },
-      
+        { name: "Log Aplikasi", link: "/log" }, // Tambahkan ini
       ],
     };
   },

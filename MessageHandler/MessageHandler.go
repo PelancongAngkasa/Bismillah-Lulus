@@ -7,6 +7,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -542,6 +543,31 @@ func DeletePartnerHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Partner deleted"})
 }
 
+func LogHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid HTTP method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Ganti path log sesuai aplikasi Anda
+	logPath := "C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/logs/holodeckb2b.log"
+	data, err := ioutil.ReadFile(logPath)
+	if err != nil {
+		http.Error(w, "Gagal membaca log: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write(data)
+}
+
 func PartnerHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -571,6 +597,7 @@ func main() {
 
 	http.HandleFunc("/api/as4/send", MessageHandler)
 	http.HandleFunc("/api/partner", PartnerHandler)
+	http.HandleFunc("/api/log", LogHandler)
 	log.Println("Starting server on http://localhost:8081")
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }
