@@ -28,6 +28,11 @@ const router = createRouter({
       path: '/log',
       name: 'LogView',
       component: () => import('../views/LogViewPage.vue'),
+    },
+    {
+      path: '/pmode/edit',
+      name: 'PmodeEdit',
+      component: () => import('../views/PmodePage.vue')
     }
   ],
 })

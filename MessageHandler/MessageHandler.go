@@ -568,6 +568,74 @@ func LogHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func ListPModeFilesHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	dir := `C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/repository/pmodes`
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		http.Error(w, "Gagal membaca folder: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var xmlFiles []string
+	for _, f := range files {
+		if !f.IsDir() && filepath.Ext(f.Name()) == ".xml" {
+			xmlFiles = append(xmlFiles, f.Name())
+		}
+	}
+	json.NewEncoder(w).Encode(xmlFiles)
+}
+
+// Get content of a PMode XML file
+func GetPModeFileHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	name := r.URL.Query().Get("name")
+	if name == "" || filepath.Ext(name) != ".xml" {
+		http.Error(w, "Nama file tidak valid", http.StatusBadRequest)
+		return
+	}
+	path := filepath.Join(`C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/repository/pmodes`, name)
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		http.Error(w, "Gagal membaca file: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/xml")
+	w.Write(data)
+}
+
+// Save (update) content of a PMode XML file
+func SavePModeFileHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid HTTP method", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		Name    string `json:"name"`
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.Name == "" || filepath.Ext(req.Name) != ".xml" {
+		http.Error(w, "Nama file tidak valid", http.StatusBadRequest)
+		return
+	}
+	path := filepath.Join(`C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/repository/pmodes`, req.Name)
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
+	if err != nil {
+		http.Error(w, "Gagal membuka file: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer f.Close() // File akan langsung ditutup setelah fungsi selesai
+	if _, err := f.WriteString(req.Content); err != nil {
+		http.Error(w, "Gagal menulis file: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write([]byte(`{"message":"File berhasil disimpan"}`))
+}
+
 func PartnerHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -598,6 +666,9 @@ func main() {
 	http.HandleFunc("/api/as4/send", MessageHandler)
 	http.HandleFunc("/api/partner", PartnerHandler)
 	http.HandleFunc("/api/log", LogHandler)
+	http.HandleFunc("/api/pmode/list", ListPModeFilesHandler)
+	http.HandleFunc("/api/pmode/get", GetPModeFileHandler)
+	http.HandleFunc("/api/pmode/save", SavePModeFileHandler)
 	log.Println("Starting server on http://localhost:8081")
 	log.Fatal(http.ListenAndServe(":8081", nil))
 }
