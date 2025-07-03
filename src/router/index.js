@@ -20,17 +20,22 @@ const router = createRouter({
       component: () => import('../views/ViewMail.vue'),
     },
     {
-      path: '/partner/add',
+      path: '/partner',
+      name: 'PartnerList',
+      component: () => import('../views/ViewPartnerUser.vue'),
+    },
+    {
+      path: '/admin/partner/add',
       name: 'Add Partner',
       component: () => import('../views/AddPartner.vue'),
     },
     {
-      path: '/log',
+      path: '/admin/log',
       name: 'LogView',
       component: () => import('../views/LogViewPage.vue'),
     },
     {
-      path: '/pmode/edit',
+      path: '/admin/pmode/edit',
       name: 'PmodeEdit',
       component: () => import('../views/PmodePage.vue')
     }

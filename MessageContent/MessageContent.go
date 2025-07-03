@@ -102,7 +102,7 @@ func viewMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msgDir := "C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/data/msg_in"
+	msgDir := "/opt/holodeckb2b/data/msg_in"
 	files, err := os.ReadDir(msgDir)
 	if err != nil {
 		http.Error(w, "Unable to read message directory", http.StatusInternalServerError)
@@ -198,7 +198,7 @@ func downloadAttachment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msgDir := "C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/data/msg_in"
+	msgDir := "/opt/holodeckb2b/data/msg_in"
 	filePath := filepath.Join(msgDir, fileName)
 
 	// Cek apakah file ada
@@ -215,7 +215,7 @@ func downloadAttachment(w http.ResponseWriter, r *http.Request) {
 func main() {
 	http.HandleFunc("/api/mail", viewMessage)
 	http.HandleFunc("/download", downloadAttachment)
-	http.Handle("/attachments/", http.StripPrefix("/attachments/", http.FileServer(http.Dir("C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/data/msg_in"))))
+	http.Handle("/attachments/", http.StripPrefix("/attachments/", http.FileServer(http.Dir("/opt/holodeckb2b/data/msg_in"))))
 
 	log.Println("Starting ViewMessage API server on port 8083...")
 	if err := http.ListenAndServe(":8083", nil); err != nil {

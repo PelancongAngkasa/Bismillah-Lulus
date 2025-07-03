@@ -5,6 +5,7 @@
     <div class="flex-1 p-8">
       <div class="max-w-3xl mx-auto bg-white shadow rounded p-6">
         <h2 class="text-lg font-bold mb-4">Compose Mail</h2>
+        
 
         <!-- Input untuk To -->
         <input
@@ -148,10 +149,32 @@ export default {
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     },
     async sendMail() {
-      if (!this.canSend) return;
-
+      if (!this.canSend) {
+        alert("Lengkapi data terlebih dahulu!");
+        return;
+      }
       this.loading = true;
 
+      // 1. Update PMode terlebih dahulu
+      try {
+        const res = await fetch("http://localhost:8081/api/pmode/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ toParty: this.toParty }),
+        });
+        if (!res.ok) {
+          const err = await res.text();
+          throw new Error(err || "Failed to update PMode");
+        }
+        // 2. Delay agar Holodeck B2B reload PMode (misal 2 detik)
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      } catch (e) {
+        alert(e.message || "Gagal update PMode");
+        this.loading = false;
+        return;
+      }
+
+      // 3. Kirim pesan seperti biasa
       const formData = new FormData();
       formData.append("fromParty", "org:holodeckb2b:example:company:A");
       formData.append("toParty", this.toParty);
@@ -179,7 +202,6 @@ export default {
         alert('Message sent successfully!');
         this.resetForm();
       } catch (error) {
-        console.error('Error sending message:', error);
         alert(error.message || 'Failed to send message');
       } finally {
         this.loading = false;
@@ -195,9 +217,7 @@ export default {
 };
 </script>
 
-
 <style scoped>
-/* Optional: Add some transitions for better UX */
 button {
   transition: background-color 0.2s ease;
 }

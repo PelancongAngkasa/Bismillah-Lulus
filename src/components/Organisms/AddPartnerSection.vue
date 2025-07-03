@@ -57,7 +57,7 @@ export default {
       this.error = ''
 
       try {
-        const response = await fetch('/api/partner', {
+        const response = await fetch('http://localhost:8081/api/partner', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

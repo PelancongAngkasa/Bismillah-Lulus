@@ -39,7 +39,7 @@ export default {
   methods: {
     async fetchLog() {
       try {
-        const res = await fetch('/api/log')
+        const res = await fetch('http://localhost:8081/api/log')
         this.log = await res.text()
       } catch (e) {
         this.log = 'Gagal mengambil log: ' + e.message

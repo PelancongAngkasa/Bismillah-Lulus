@@ -1,6 +1,6 @@
 <template>
   <div class="p-8 max-w-5xl mx-auto">
-    <h2 class="text-2xl font-bold mb-4">Daftar File PMode XML</h2>
+    <h2 class="text-2xl font-bold mb-4">Daftar File Konfigurasi</h2>
     <ul class="mb-6 space-y-2">
       <li
         v-for="file in files"
@@ -52,17 +52,17 @@ export default {
   },
   methods: {
     async fetchFiles() {
-      const res = await fetch("/api/pmode/list")
+      const res = await fetch('http://localhost:8081/api/pmode/list')
       this.files = await res.json()
     },
     async selectFile(file) {
       this.selectedFile = file
       this.saveMsg = ""
-      const res = await fetch(`/api/pmode/get?name=${encodeURIComponent(file)}`)
+      const res = await fetch(`http://localhost:8081/api/pmode/get?name=${encodeURIComponent(file)}`)
       this.fileContent = await res.text()
     },
     async saveFile() {
-      const res = await fetch("/api/pmode/save", {
+      const res = await fetch("http://localhost:8081/api/pmode/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -72,6 +72,12 @@ export default {
       })
       if (res.ok) {
         this.saveMsg = "Berhasil disimpan!"
+        // Tutup tampilan editor setelah berhasil simpan
+        setTimeout(() => {
+          this.selectedFile = ""
+          this.fileContent = ""
+          this.saveMsg = ""
+        }, 1000)
       } else {
         this.saveMsg = "Gagal menyimpan file."
       }

@@ -81,8 +81,8 @@ func replacePlaceholders(template, address, partyID string) (string, error) {
 	if template == "" {
 		return "", fmt.Errorf("template is empty")
 	}
-	replaced := strings.ReplaceAll(template, "${dynamic_responder_party_id}", partyID)
-	replaced = strings.ReplaceAll(replaced, "${dynamic_address}", address)
+	replaced := strings.ReplaceAll(template, "${dynamic_responder_party_id}", strings.TrimSpace(partyID))
+	replaced = strings.ReplaceAll(replaced, "${dynamic_address}", strings.TrimSpace(address))
 	return replaced, nil
 }
 
@@ -93,7 +93,7 @@ func updatePModeTemplate(partyName string) error {
 	}
 	log.Printf("Dynamic Address: %s, Party ID: %s", dynamicAddress, partyID)
 
-	templateFile := `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\examples\pmodes\pm-push.xml`
+	templateFile := "/opt/holodeckb2b/examples/pmodes/pm-push.xml"
 
 	pmodeContent, err := os.ReadFile(templateFile)
 	if err != nil {
@@ -105,7 +105,7 @@ func updatePModeTemplate(partyName string) error {
 		return fmt.Errorf("failed to replace placeholders in template: %v", err)
 	}
 
-	activePMode := `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\repository\pmodes\current-pmode.xml`
+	activePMode := "/opt/holodeckb2b/repository/pmodes/current-pmode.xml"
 
 	if err := os.WriteFile(activePMode, []byte(updatedContent), 0644); err != nil {
 		return fmt.Errorf("failed to overwrite active P-Mode file: %v", err)
@@ -113,6 +113,40 @@ func updatePModeTemplate(partyName string) error {
 
 	log.Printf("P-Mode successfully updated for party: %s", partyName)
 	return nil
+}
+
+// Tambahkan di bawah func SavePModeFileHandler
+func UpdatePModeHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid HTTP method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		ToParty string `json:"toParty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if req.ToParty == "" {
+		http.Error(w, "toParty is required", http.StatusBadRequest)
+		return
+	}
+	if err := updatePModeTemplate(req.ToParty); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to update P-Mode template: %v", err), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"message":"PMode updated successfully"}`))
 }
 
 func writePayloadAsSOAP(message AS4Message, outputDir, soapPayloadFileName string) error {
@@ -281,12 +315,7 @@ func MessageHandler(w http.ResponseWriter, r *http.Request) {
 		message.MessageID = fmt.Sprintf("msg_%d", time.Now().UnixNano())
 	}
 
-	if err := updatePModeTemplate(message.ToParty); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to update P-Mode template: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	payloadDir := "C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/data/msg_out/payloads"
+	payloadDir := "/opt/holodeckb2b/data/msg_out/payloads"
 	if err := os.MkdirAll(payloadDir, os.ModePerm); err != nil {
 		http.Error(w, "Failed to create payload directory", http.StatusInternalServerError)
 		return
@@ -351,7 +380,7 @@ func MessageHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	outputDir := "C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/data/msg_out"
+	outputDir := "/opt/holodeckb2b/data/msg_out"
 	if err := writeMMDFile(message, soapPayloadFileName, attachmentFileNames, mimeTypes, outputDir); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create MMD file: %v", err), http.StatusInternalServerError)
 		return
@@ -422,9 +451,9 @@ func AddPartnerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	templatePath := "C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/examples/pmodes/ex-pm-push-resp.xml"
+	templatePath := "/opt/holodeckb2b/examples/pmodes/ex-pm-push-resp.xml"
 	safeName := sanitizeFilename(data.Name)
-	outputPath := fmt.Sprintf("C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/repository/pmodes/pmode-resp-%s.xml", safeName)
+	outputPath := fmt.Sprintf("/opt/holodeckb2b/repository/pmodes/pmode-resp-%s.xml", safeName)
 
 	err = GeneratePModeFromTemplate(templatePath, outputPath, data.PartyID)
 	if err != nil {
@@ -558,7 +587,7 @@ func LogHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ganti path log sesuai aplikasi Anda
-	logPath := "C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/logs/holodeckb2b.log"
+	logPath := "/opt/holodeckb2b/logs/holodeckb2b.log"
 	data, err := ioutil.ReadFile(logPath)
 	if err != nil {
 		http.Error(w, "Gagal membaca log: "+err.Error(), http.StatusInternalServerError)
@@ -570,7 +599,7 @@ func LogHandler(w http.ResponseWriter, r *http.Request) {
 
 func ListPModeFilesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	dir := `C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/repository/pmodes`
+	dir := "/opt/holodeckb2b/repository/pmodes"
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		http.Error(w, "Gagal membaca folder: "+err.Error(), http.StatusInternalServerError)
@@ -593,7 +622,7 @@ func GetPModeFileHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Nama file tidak valid", http.StatusBadRequest)
 		return
 	}
-	path := filepath.Join(`C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/repository/pmodes`, name)
+	path := filepath.Join("/opt/holodeckb2b/repository/pmodes", name)
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		http.Error(w, "Gagal membaca file: "+err.Error(), http.StatusInternalServerError)
@@ -622,7 +651,7 @@ func SavePModeFileHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Nama file tidak valid", http.StatusBadRequest)
 		return
 	}
-	path := filepath.Join(`C:/Users/Yusuf/Documents/Kuliah/RPLK/Tugas Akhir/holodeckb2b-7.0.0-A/repository/pmodes`, req.Name)
+	path := filepath.Join("/opt/holodeckb2b/repository/pmodes", req.Name)
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
 	if err != nil {
 		http.Error(w, "Gagal membuka file: "+err.Error(), http.StatusInternalServerError)
@@ -637,6 +666,15 @@ func SavePModeFileHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func PartnerHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	switch r.Method {
 	case http.MethodGet:
 		GetPartnersHandler(w, r)
@@ -653,7 +691,7 @@ func PartnerHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	var err error
-	db, err = sql.Open("mysql", "root:@tcp(localhost:3306)/proyekta")
+	db, err = sql.Open("mysql", "user:password@tcp(xampp-mariadb:3306)/proyekta")
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -666,6 +704,7 @@ func main() {
 	http.HandleFunc("/api/as4/send", MessageHandler)
 	http.HandleFunc("/api/partner", PartnerHandler)
 	http.HandleFunc("/api/log", LogHandler)
+	http.HandleFunc("/api/pmode/update", UpdatePModeHandler)
 	http.HandleFunc("/api/pmode/list", ListPModeFilesHandler)
 	http.HandleFunc("/api/pmode/get", GetPModeFileHandler)
 	http.HandleFunc("/api/pmode/save", SavePModeFileHandler)

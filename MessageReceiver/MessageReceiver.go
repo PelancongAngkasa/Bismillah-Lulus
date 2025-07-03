@@ -67,7 +67,7 @@ func getMails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msgDir := `C:\Users\Yusuf\Documents\Kuliah\RPLK\Tugas Akhir\holodeckb2b-7.0.0-A\data\msg_in`
+	msgDir := "/opt/holodeckb2b/data/msg_in"
 	files, err := ioutil.ReadDir(msgDir)
 	if err != nil {
 		http.Error(w, "Unable to read message directory", http.StatusInternalServerError)

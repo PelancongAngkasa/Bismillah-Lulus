@@ -1,0 +1,8 @@
+FROM golang:1.23-alpine
+
+WORKDIR /app
+COPY . .
+RUN go build -o message-content
+
+EXPOSE 8083
+CMD ["./message-content"]
