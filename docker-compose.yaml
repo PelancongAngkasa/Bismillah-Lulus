@@ -1,43 +1,4 @@
 services:
-  messagehandler:
-    build:
-      context: ./MessageHandler
-      dockerfile: Dockerfile
-    container_name: messagehandlerA
-    ports:
-      - "8081:8081"
-    volumes:
-      - ../holodeckb2b-7.0.0-A/repository:/opt/holodeckb2b/repository
-      - ../holodeckb2b-7.0.0-A/data:/opt/holodeckb2b/data
-      - ../holodeckb2b-7.0.0-A/examples:/opt/holodeckb2b/examples/
-      - ../holodeckb2b-7.0.0-A/logs:/opt/holodeckb2b/logs
-    networks:
-      - proyekTA
-
-  messagereceiver:
-    build:
-      context: ./MessageReceiver
-      dockerfile: Dockerfile
-    container_name: messagereceiverA
-    ports:
-      - "8082:8082"
-    volumes:
-      - ../holodeckb2b-7.0.0-A/data:/opt/holodeckb2b/data
-    networks:
-      - proyekTA
-
-  messagecontent:
-    build:
-      context: ./MessageContent
-      dockerfile: Dockerfile
-    container_name: messagecontentA
-    ports:
-      - "8083:8083"
-    volumes:
-      - ../holodeckb2b-7.0.0-A/data:/opt/holodeckb2b/data
-    networks:
-      - proyekTA
-
   frontend:
     build:
       context: .

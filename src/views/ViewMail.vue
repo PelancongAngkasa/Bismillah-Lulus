@@ -19,6 +19,27 @@
       <div class="mb-6">
         <p class="text-lg text-gray-800 mb-4">{{ mail.message }}</p>
 
+        <!-- Security Information Section -->
+        <div v-if="mail.securityInfo" class="mt-6 mb-6">
+          <h3 class="text-lg font-semibold mb-4 text-blue-600">
+            <i class="fas fa-shield-alt mr-2"></i>
+            Security Information
+          </h3>
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div class="space-y-2 text-sm">
+              <div><span class="font-medium">Keystore Alias:</span> {{ mail.securityInfo.keystoreAlias || 'Not specified' }}</div>
+              <div v-if="mail.securityInfo.dname">
+                <span class="font-medium">Distinguished Name (DName):</span>
+                <span>{{ mail.securityInfo.dname }}</span>
+              </div>
+              <div v-else class="text-gray-500 text-sm">
+                <i class="fas fa-exclamation-triangle mr-1"></i>
+                DName not available
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Attachments Table -->
         <div v-if="mail.attachments && mail.attachments.length > 0" class="mt-6">
           <h3 class="text-lg font-semibold mb-2">Attachments:</h3>
@@ -32,7 +53,10 @@
             </thead>
             <tbody>
               <tr v-for="attachment in mail.attachments" :key="attachment.path" class="text-sm text-gray-700">
-                <td class="p-2 border">{{ attachment.name }}</td>
+                <td class="p-2 border flex items-center space-x-2">
+                  <i :class="getFileIcon(attachment.mimeType)" class="text-gray-500"></i>
+                  <span>{{ attachment.name }}</span>
+                </td>
                 <td class="p-2 border">{{ attachment.mimeType }}</td>
                 <td class="p-2 border space-x-2">
                   <button v-if="canPreview(attachment.mimeType)"
@@ -40,7 +64,7 @@
                           class="text-blue-500 hover:text-blue-700">
                     Preview
                   </button>
-                  <a :href="`http://localhost:8083/download?id=${attachment.path}&name=${attachment.name}`"
+                  <a :href="`http://localhost:8083/download?name=${attachment.path}&name=${attachment.name}`"
                      class="text-green-500 hover:text-green-700"
                      download>
                     Download
@@ -62,11 +86,12 @@
             </div>
             <!-- Displaying the file based on its type -->
             <div class="max-h-[80vh] overflow-auto">
-              <img v-if="isImage(previewFile.mimeType)" :src="getFileUrl(previewFile)" class="max-w-full">
+              <img v-if="isImage(previewFile.mimeType)" :src="getFileUrl(previewFile)" class="max-w-full mx-auto">
               <iframe v-else-if="isPDF(previewFile.mimeType)" 
                       :src="getFileUrl(previewFile)"
                       class="w-full h-[70vh]">
               </iframe>
+              <p v-else class="text-gray-500 text-center">Preview not available for this file type.</p>
             </div>
           </div>
         </div>
@@ -75,7 +100,7 @@
       <!-- Action Buttons -->
       <div class="flex space-x-4">
         <Button color="bg-blue-500" @click="replyMail">Reply</Button>
-        <Button color="bg-red-500" @click="deleteMail">Delete</Button>
+        
       </div>
     </div>
   </div>
@@ -84,7 +109,6 @@
     <p>Loading mail...</p>
   </div>
 </template>
-
 
 <script>
 import Sidebar from "@/components/Organisms/Sidebar.vue";
@@ -97,9 +121,10 @@ export default {
       mail: null,
       showPreview: false,
       previewFile: null,
+      showCertInfo: false,
+      certificateInfo: null,
     };
   },
-
   methods: {
     fetchMail(mailId) {
       fetch(`http://localhost:8083/api/mail?id=${mailId}`)
@@ -110,14 +135,13 @@ export default {
           return response.json();
         })
         .then((data) => {
-          // Membuat array attachments jika ada attachment
           let attachments = [];
           if (data.attachments && Array.isArray(data.attachments)) {
             attachments = data.attachments.map(att => ({
-              name: att.fileName,
-              path: att.fileName,
-              mimeType: att.mimeType,
-              url: att.url
+              name: att.fileName || att.name || att,
+              path: att.fileName || att.name || att,
+              mimeType: att.mimeType || this.getMimeType(att.fileName || att.name || att),
+              url: att.url || this.getFileUrl({ path: att.fileName || att.name || att })
             }));
           }
 
@@ -125,10 +149,11 @@ export default {
             id: data.id,
             sender: data.sender || "Unknown Sender",
             receiver: data.receiver || "Unknown Receiver",
-            date: new Date(data.date).toLocaleString(),
+            date: data.date ? new Date(data.date).toLocaleString() : "",
             subject: data.subject || "No subject available",
             message: data.content || "No message content available",
             attachments: attachments,
+            securityInfo: data.securityInfo || null,
           };
         })
         .catch((error) => {
@@ -137,20 +162,69 @@ export default {
         });
     },
 
-    // Tambahkan method baru untuk menentukan MIME type
-    getMimeType(filename) {
-      if (filename.toLowerCase().endsWith('.pdf')) {
-        return 'application/pdf';
-      } else if (filename.toLowerCase().match(/\.(jpg|jpeg|png|gif)$/)) {
-        return 'image/' + filename.toLowerCase().split('.').pop();
+    copyCertificate() {
+      if (this.mail.securityInfo && this.mail.securityInfo.publicKeyCertificate) {
+        navigator.clipboard.writeText(this.mail.securityInfo.publicKeyCertificate)
+          .then(() => {
+            alert('Certificate copied to clipboard!');
+          })
+          .catch(() => {
+            alert('Failed to copy certificate to clipboard');
+          });
       }
-      return 'application/octet-stream';
     },
+
+    showCertificateInfo() {
+      this.showCertInfo = true;
+      this.certificateInfo = null; // Clear previous info
+      this.fetchCertificateInfo();
+    },
+
+         fetchCertificateInfo() {
+       fetch(`http://localhost:8083/api/certificates`)
+         .then((response) => {
+           if (!response.ok) {
+             throw new Error(`Failed to fetch certificate info: ${response.statusText}`);
+           }
+           return response.json();
+         })
+         .then((data) => {
+           this.certificateInfo = data;
+         })
+         .catch((error) => {
+           console.error("Error fetching certificate info:", error);
+           alert("Failed to load certificate information. Please try again later.");
+         });
+     },
+
+    formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    },
+
+    getMimeType(filename) {
+      if (!filename) return 'application/octet-stream';
+      const ext = filename.toLowerCase().split('.').pop();
+      switch (ext) {
+        case 'pdf':
+          return 'application/pdf';
+        case 'jpg':
+        case 'jpeg':
+        case 'png':
+        case 'gif':
+        case 'bmp':
+        case 'webp':
+          return 'image/' + ext;
+        default:
+          return 'application/octet-stream';
+      }
+    },
+
     replyMail() {
       this.$router.push("/compose");
-    },
-    deleteMail() {
-      alert("Mail Deleted!");
     },
 
     getFileIcon(mimeType) {
@@ -178,8 +252,10 @@ export default {
 
     getFileUrl(file) {
       return `http://localhost:8083/attachments/${file.path}`;
-    }
+    },
+    // extractDName method dihapus karena backend sudah mengirim dname langsung
   },
+
   created() {
     const mailId = this.$route.params.id;
     this.fetchMail(mailId);
