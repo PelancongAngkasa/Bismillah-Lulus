@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PMode xmlns="http://holodeckb2b.org/schemas/2014/10/pmode"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://holodeckb2b.org/schemas/2014/10/pmode ../../repository/xsd/pmode.xsd">
+    <id>current-pmode-push</id>
+    <mep>http://docs.oasis-open.org/ebxml-msg/ebms/v3.0/ns/core/200704/oneWay</mep>
+    <mepBinding>http://docs.oasis-open.org/ebxml-msg/ebms/v3.0/ns/core/200704/push</mepBinding>
+
+    <Initiator>
+        <PartyId>org:holodeckb2b:example:company:A</PartyId>
+        <Role>Sender</Role>
+        <SecurityConfiguration>
+            <Signing>
+                <KeystoreAlias password="PasswordA">companya</KeystoreAlias>
+                <Algorithm>http://www.w3.org/2001/04/xmldsig-more#rsa-sha384</Algorithm>
+            </Signing>
+        </SecurityConfiguration>
+    </Initiator>
+
+    <Responder>
+        <PartyId>${dynamic_responder_party_id}</PartyId>
+        <Role>Receiver</Role>
+        <SecurityConfiguration>
+            <Encryption>
+                <KeystoreAlias password="PasswordB">companyb</KeystoreAlias>
+                <KeyTransport>
+                    <Algorithm>http://www.w3.org/2001/04/xmlenc#rsa-oaep-mgf1p</Algorithm>
+                    <KeyReferenceMethod>KeyIdentifier</KeyReferenceMethod>
+                </KeyTransport>
+                <SymmetricAlgorithm>http://www.w3.org/2001/04/xmlenc#aes256-cbc</SymmetricAlgorithm>
+            </Encryption>
+        </SecurityConfiguration>
+    </Responder>
+
+    <Leg>
+        <Protocol>
+            <Address>${dynamic_address}</Address>
+        </Protocol>
+        <Receipt>
+            <ReplyPattern>CALLBACK</ReplyPattern>
+        </Receipt>
+        <DefaultDelivery>
+            <DeliveryMethod>org.holodeckb2b.backend.file.NotifyAndDeliverOperation</DeliveryMethod>
+            <Parameter>
+                <name>format</name>
+                <value>ebms</value>
+            </Parameter>
+            <Parameter>
+                <name>deliveryDirectory</name>
+                <value>data/msg_in</value>
+            </Parameter>
+        </DefaultDelivery>
+    </Leg>
+</PMode>

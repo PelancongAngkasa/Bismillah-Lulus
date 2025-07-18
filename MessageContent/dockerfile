@@ -1,0 +1,11 @@
+FROM golang:1.23-alpine
+
+# Install Java and keytool
+RUN apk add --no-cache openjdk11-jre
+
+WORKDIR /app
+COPY . .
+RUN go build -o message-content
+
+EXPOSE 8083
+CMD ["./message-content"]

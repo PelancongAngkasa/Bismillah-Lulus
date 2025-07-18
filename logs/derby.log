@@ -1,0 +1,14 @@
+----------------------------------------------------------------
+Tue Jul 15 07:50:30 GMT 2025:
+Booting Derby version The Apache Software Foundation - Apache Derby - 10.12.1.1 - (1704137): instance a816c00e-0198-0d10-4f72-000002dbabf8 
+on database directory /opt/holodeckb2b/db/coreDB with class loader jdk.internal.loader.ClassLoaders$AppClassLoader@30946e09 
+Loaded from file:/opt/holodeckb2b/lib/derby-10.12.1.1.jar
+java.vendor=Eclipse Adoptium
+java.runtime.version=17.0.15+6
+user.dir=/opt/holodeckb2b
+os.name=Linux
+os.arch=amd64
+os.version=6.6.87.2-microsoft-standard-WSL2
+derby.system.home=null
+derby.stream.error.file=/opt/holodeckb2b/logs/derby.log
+Database Class Loader started - derby.database.classpath=''

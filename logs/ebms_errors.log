@@ -1,0 +1,99 @@
+2024-12-29 20:11:24,062 [received.AS4]- ErrorSignal: msgId=da802d16-54c0-4ad4-922e-ddd8ff7c953a@01-20-yusufatha, referenced message id=64cac686-3ca6-4ec0-a930-38d691651c75@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!
+2024-12-29 20:15:34,765 [received.AS4]- ErrorSignal: msgId=0e1562f3-51ae-4014-95f6-c56027ab1e91@01-20-yusufatha, referenced message id=45d3d51b-7de8-4f37-84ab-dc4ceeb4d0fa@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process pull request because no P-Mode was found!
+2024-12-29 20:25:03,778 [received.AS4]- ErrorSignal: msgId=c922a612-9e8d-4a1a-8c2a-8916cbd7eee4@01-20-yusufatha, referenced message id=888b1ba9-68f3-47d4-a43e-9bbdeb3e5b90@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process pull request because no P-Mode was found!
+2024-12-29 20:30:04,343 [received.AS4]- ErrorSignal: msgId=95b5e015-b34a-4282-8fd5-9b011649e0a4@01-20-yusufatha, referenced message id=ba7a2fd5-6a32-43a1-8fe7-5b4a7e814ef7@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process pull request because no P-Mode was found!
+2024-12-29 20:35:04,970 [received.AS4]- ErrorSignal: msgId=9701910d-8a04-426f-8ffa-4cfbf08a5f17@01-20-yusufatha, referenced message id=8e125dea-bed5-4e83-9e6e-1c94830e3e38@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process pull request because no P-Mode was found!
+2024-12-29 20:39:55,569 [received.AS4]- ErrorSignal: msgId=c41733d5-929f-4352-a238-4ccf5bcd3ce9@01-20-yusufatha, referenced message id=4bbb42cd-5c68-4fa8-b6ed-81667899c022@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process pull request because no P-Mode was found!
+2024-12-29 20:44:56,078 [received.AS4]- ErrorSignal: msgId=d5050d14-863f-4e2b-9963-3b086a5022dd@01-20-yusufatha, referenced message id=cc805195-8efd-4bc4-83a5-561069646ed4@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process pull request because no P-Mode was found!
+2024-12-29 20:49:56,576 [received.AS4]- ErrorSignal: msgId=6f191c47-b985-49b0-aa25-b9fa89400764@01-20-yusufatha, referenced message id=9396a93c-edee-486f-9293-72372a850667@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process pull request because no P-Mode was found!
+2024-12-29 20:57:50,889 [received.AS4]- ErrorSignal: msgId=1a568b81-2678-4af3-9b6f-12a2137e1ffc@01-20-yusufatha, referenced message id=44d97c3a-fef1-4ef0-92e3-85815ad66f76@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process pull request because no P-Mode was found!
+2024-12-29 21:02:51,460 [received.AS4]- ErrorSignal: msgId=63854db3-577f-4127-8109-60b3e56f51d3@01-20-yusufatha, referenced message id=9230536a-9b9c-4231-b0c2-7ea55c8eb5ec@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process pull request because no P-Mode was found!
+2024-12-29 21:07:51,885 [received.AS4]- ErrorSignal: msgId=0a39696f-feac-4531-b791-20be9a28a7d6@01-20-yusufatha, referenced message id=386d5ddf-e5ce-4ab7-8096-1e5f5c969de8@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process pull request because no P-Mode was found!
+2024-12-29 21:12:52,377 [received.AS4]- ErrorSignal: msgId=f3bd019b-6fd6-4b88-8029-53f8ab8b94cc@01-20-yusufatha, referenced message id=75880517-7589-4498-a47a-906b6db871bf@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process pull request because no P-Mode was found!
+2024-12-29 21:17:52,870 [received.AS4]- ErrorSignal: msgId=9155feae-d004-42c4-bd40-0696a3bbe1a4@01-20-yusufatha, referenced message id=5e80ec60-c146-4a0a-bc8d-eb42a37b4224@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process pull request because no P-Mode was found!
+2024-12-29 21:22:53,279 [received.AS4]- ErrorSignal: msgId=1ab04819-ff33-465c-af65-231f52c9916c@01-20-yusufatha, referenced message id=72279425-534c-4b35-980f-d9d6ecf713da@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process pull request because no P-Mode was found!
+2024-12-29 21:55:15,320 [received.AS4]- ErrorSignal: msgId=237ecb98-f775-49b2-8c22-b559ed0df279@01-20-yusufatha, referenced message id=ec4fd22e-1307-44af-a034-f728d8ad9119@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process pull request because no P-Mode was found!
+2024-12-29 22:00:15,758 [received.AS4]- ErrorSignal: msgId=a4d75532-3172-4895-804f-7b56bd2ebccb@01-20-yusufatha, referenced message id=6c054850-8715-442b-9730-13d28a9248e3@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process pull request because no P-Mode was found!
+2024-12-29 22:00:35,997 [received.AS4]- ErrorSignal: msgId=9c4a44f4-cb32-4c57-8050-d8fc286cbe94@01-20-yusufatha, referenced message id=ff0f7012-fb7a-4be6-813b-0b3751073f42@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!
+2025-01-11 16:03:12,684 [received.AS4]- ErrorSignal: msgId=c48834b6-bc48-4bca-a3b1-7c92abeef6e5@192.168.95.199, referenced message id=0022fa0d-bf42-40b7-a1bf-f709929146dc@192.168.95.199
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!
+2025-01-11 16:07:03,187 [received.AS4]- ErrorSignal: msgId=3d63c3ee-dd48-4a20-9763-e1bc32469b0c@192.168.95.199, referenced message id=3d595d51-b0d1-4666-add9-61af543447af@192.168.95.199
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!
+2025-01-11 16:09:43,993 [received.AS4]- ErrorSignal: msgId=425b6255-4e3e-49f9-953e-a233fc7ca8e6@192.168.95.199, referenced message id=9b73a81e-7b89-411a-9a35-08489e4efd7e@192.168.95.199
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!
+2025-01-11 22:08:27,125 [received.AS4]- ErrorSignal: msgId=3d03d097-c2c6-41c2-92ca-7cb90013b2e9@192.168.95.199, referenced message id=5b7cd28c-8c1b-489c-a0e4-90840caab348@192.168.95.199
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!
+2025-01-13 09:33:43,568 [received.AS4]- ErrorSignal: msgId=f4fdf21b-cd29-418b-9cdd-5eec172ea224@01-20-yusufatha, referenced message id=3a51939b-a54b-4fab-a8be-d1b507036260@01-20-yusufatha
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!
+2025-01-20 21:45:44,890 [received.AS4]- ErrorSignal: msgId=3d2569fd-5c26-4f6b-b7f9-c0b631220f26@HP-Laptop, referenced message id=69440882-0253-40f8-be6d-f32f9a556063@HP-Laptop
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!
+2025-01-20 21:55:16,304 [received.AS4]- ErrorSignal: msgId=eb95d554-80be-47e6-bc3c-067e95e1ecdc@HP-Laptop, referenced message id=b381a682-b8d4-43ba-8081-419f738fb068@HP-Laptop
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!
+2025-01-20 22:05:17,462 [received.AS4]- ErrorSignal: msgId=b25e66ea-1b63-438e-afc2-91ff8349b613@HP-Laptop, referenced message id=13813e59-9a46-44ae-916d-4de5ad9f94a5@HP-Laptop
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!
+2025-05-26 20:36:24,956 [received.AS4]- ErrorSignal: msgId=666be1e4-1da0-4ce8-81f4-3f4267da4364@HP-Laptop, referenced message id=msg-1748266565458
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!
+2025-06-26 11:00:24,021 [received.AS4]- ErrorSignal: msgId=ebcf7045-6bb3-45ea-9b34-f19905b8ac94@HP-Laptop, referenced message id=msg-1750910421305
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!
+2025-06-26 11:33:38,297 [received.AS4]- ErrorSignal: msgId=1b142cf3-f28b-4c31-917b-e21ba1e06547@HP-Laptop, referenced message id=msg-1750912388069
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!
+2025-06-26 11:48:39,297 [received.AS4]- ErrorSignal: msgId=6b0dd93a-4395-4ce3-bc60-5e7216b28e5e@HP-Laptop, referenced message id=msg-1750913311389
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!
+2025-06-26 11:49:49,534 [received.AS4]- ErrorSignal: msgId=6d62abd7-cf53-4c63-a2af-001b447d6dec@HP-Laptop, referenced message id=msg-1750913381849
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!
+2025-06-26 12:05:31,121 [received.AS4]- ErrorSignal: msgId=f43c1227-011c-4446-bd51-743f693b53b8@HP-Laptop, referenced message id=msg-1750914312313
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!
+2025-06-26 12:06:04,248 [received.AS4]- ErrorSignal: msgId=b7f45d15-c30c-40b9-92eb-8fbcfe2ec903@HP-Laptop, referenced message id=msg-1750914360029
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!
+2025-07-09 13:20:39,770 [received.AS4]- ErrorSignal: msgId=d7bc1f6c-8c72-41c7-95fc-f0724b957eca@fdb4d33dc0da, referenced message id=msg-1752067162961
+List of errors:ebMS error:
+	Code=EBMS:0010	Message=ProcessingModeMismatch	Severity= failure	Origin= ebms	Category= Processing	Details= Can not process message because no P-Mode was found for the message!

@@ -1,0 +1,63 @@
+services:
+  holodeckb2b:
+    build: .
+    container_name: holodeckb2bA
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - proyekTA
+    volumes:
+      - ./repository:/opt/holodeckb2b/repository
+      - ./data:/opt/holodeckb2b/data
+      - ./data/msg_in:/opt/holodeckb2b/data/msg_in
+      - ./data/msg_out:/opt/holodeckb2b/data/msg_out
+      - ./conf:/opt/holodeckb2b/conf
+      - ./examples:/opt/holodeckb2b/examples/pmodes
+      - ./logs:/opt/holodeckb2b/logs
+      - ./libs:/opt/holodeckb2b/libs
+      - ./temp:/opt/holodeckb2b/temp
+
+  messagehandler:
+    build:
+      context: ./MessageHandler
+      dockerfile: Dockerfile
+    container_name: messagehandlerA
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./repository:/opt/holodeckb2b/repository
+      - ./data:/opt/holodeckb2b/data
+      - ./examples:/opt/holodeckb2b/examples/
+      - ./logs:/opt/holodeckb2b/logs
+    networks:
+      - proyekTA
+
+  messagereceiver:
+    build:
+      context: ./MessageReceiver
+      dockerfile: Dockerfile
+    container_name: messagereceiverA
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./data:/opt/holodeckb2b/data
+    networks:
+      - proyekTA
+
+  messagecontent:
+    build:
+      context: ./MessageContent
+      dockerfile: Dockerfile
+    container_name: messagecontentA
+    ports:
+      - "8083:8083"
+    volumes:
+      - ./repository:/opt/holodeckb2b/repository
+      - ./data:/opt/holodeckb2b/data
+    networks:
+      - proyekTA
+
+networks:
+  proyekTA:
+    external: true
