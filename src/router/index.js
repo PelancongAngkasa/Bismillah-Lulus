@@ -10,8 +10,8 @@ const router = createRouter({
       component: MailList,
     },
     {
-      path: '/compose',
-      name: 'compose',
+      path: '/kirim',
+      name: 'kirim',
       component: () => import('../views/ComposeMail.vue'),
     },
     {

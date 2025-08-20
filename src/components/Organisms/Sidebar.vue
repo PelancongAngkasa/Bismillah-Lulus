@@ -1,12 +1,6 @@
 <template>
-  <aside class="bg-black text-white w-64 h-screen p-6">
-    <h1 class="text-xl font-bold mb-6">SanapatiLink</h1>
-    <button 
-      @click="$router.push('/compose')" 
-      class="mb-4 w-full bg-blue-500 text-white py-2 px-4 rounded">
-      Compose
-    </button>
-    <nav>
+  <aside class="bg-gray-800 w-64 flex-shrink-0 min-h-full">
+    <nav class="p-4 text-white h-full">
       <ul class="space-y-2">
         <li v-for="item in menuItems" :key="item.link">
           <router-link
@@ -20,12 +14,6 @@
         </li>
       </ul>
     </nav>
-    <button
-      @click="goToAdmin"
-      class="mt-8 w-full bg-yellow-500 text-black py-2 px-4 rounded font-semibold hover:bg-yellow-400 transition"
-    >
-      Masuk sebagai Admin
-    </button>
   </aside>
 </template>
 
@@ -35,9 +23,14 @@ export default {
     return {
       menuItems: [
         {
-          name: "Inbox",
+          name: "Kirim Pesan",
+          link: "/kirim",
+          icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send-icon lucide-send"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></svg>`
+        },
+        {
+          name: "Pesan Masuk",
           link: "/",
-          icon: `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V7a2 2 0 00-2-2H6a2 2 0 00-2 2v6m16 0v6a2 2 0 01-2 2H6a2 2 0 01-2-2v-6m16 0H4" /></svg>`
+          icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-inbox-icon lucide-inbox"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>`
         },
         {
           name: "Daftar Partner",

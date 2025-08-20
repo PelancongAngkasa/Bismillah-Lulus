@@ -1,6 +1,6 @@
 <template>
     <div class="p-6 border rounded shadow-md">
-      <h2 class="font-bold mb-4">Compose Email</h2>
+      <h2 class="font-bold mb-4">Kirim Pesan</h2>
       <Input placeholder="To" class="mb-2" />
       <Input placeholder="CC" class="mb-2" />
       <Input placeholder="Subject" class="mb-2" />

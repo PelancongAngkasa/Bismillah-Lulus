@@ -1,35 +1,41 @@
 <template>
-  <Card class="w-full max-w-7xl mx-4 mt-10">
-    <h3 class="text-lg font-bold mb-2">Daftar Partner</h3>
-    <table class="min-w-full border text-sm">
-      <thead>
-        <tr class="bg-gray-100">
-          <th class="border px-2 py-1">Party ID</th>
-          <th class="border px-2 py-1">Name</th>
-          <th class="border px-2 py-1">Endpoint URL</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="p in paginatedPartners" :key="p.partyid">
-          <td class="border px-2 py-1">{{ p.partyid }}</td>
-          <td class="border px-2 py-1">{{ p.name }}</td>
-          <td class="border px-2 py-1">{{ p.endpoint_url }}</td>
-        </tr>
-      </tbody>
-    </table>
+  <Card class="mx-auto my-10 max-w-7xl transition-all duration-300 px-6">
+    <h3 class="text-lg font-bold mb-4">Daftar Partner</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full border text-sm">
+        <thead>
+          <tr class="bg-gray-100">
+            <th class="border px-4 py-2">ID Partner</th>
+            <th class="border px-4 py-2">Nama Partner</th>
+            <th class="border px-4 py-2">Alamat URL</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="p in paginatedPartners" :key="p.partyid" class="hover:bg-gray-50">
+            <td class="border px-4 py-2">{{ p.partyid }}</td>
+            <td class="border px-4 py-2">{{ p.name }}</td>
+            <td class="border px-4 py-2">{{ p.endpoint_url }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     <!-- Pagination Controls -->
-    <div class="flex justify-center mt-4 gap-2">
+    <div class="flex justify-center mt-6 gap-2">
       <button
         @click="currentPage--"
         :disabled="currentPage === 1"
-        class="px-3 py-1 rounded bg-gray-200 disabled:opacity-50"
-      >Prev</button>
-      <span>Page {{ currentPage }} / {{ totalPages }}</span>
+        class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:hover:bg-gray-200"
+      >
+        Prev
+      </button>
+      <span class="flex items-center">Page {{ currentPage }} / {{ totalPages }}</span>
       <button
         @click="currentPage++"
         :disabled="currentPage === totalPages"
-        class="px-3 py-1 rounded bg-gray-200 disabled:opacity-50"
-      >Next</button>
+        class="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:hover:bg-gray-200"
+      >
+        Next
+      </button>
     </div>
   </Card>
 </template>

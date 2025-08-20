@@ -1,17 +1,28 @@
 <template>
-  <div class="flex h-screen">
-    <Sidebar />
-
-    <div class="flex-1 p-8">
-      <div class="max-w-3xl mx-auto bg-white shadow rounded p-6">
-        <h2 class="text-lg font-bold mb-4">Compose Mail</h2>
+  <div class="min-h-screen flex flex-col">
+    <Navbar @toggle-sidebar="toggleSidebar" />
+    
+    <!-- Spacer untuk navbar fixed -->
+    <div class="h-16"></div>
+    
+    <div class="flex flex-1">
+      <!-- Sidebar -->
+      <Sidebar
+        v-show="isSidebarVisible"
+        class="fixed top-16 left-0 h-[calc(100vh-64px)] w-64 bg-gray-800"
+      />
+      
+      <!-- Main content -->
+      <div class="flex-1 bg-gray-100 p-6 overflow-auto">
+        <div class="max-w-3xl mx-auto bg-white shadow rounded p-6">
+        <h2 class="text-lg font-bold mb-4">Kirim Pesan</h2>
         
 
         <!-- Input untuk To -->
         <input
           v-model="toParty"
           type="text"
-          placeholder="To"
+          placeholder="Kepada (Nama Partner)"
           class="mb-2 w-full p-2 border rounded"
         />
 
@@ -19,14 +30,14 @@
         <input
           v-model="subject"
           type="text"
-          placeholder="Subject"
+          placeholder="Subjek"
           class="mb-2 w-full p-2 border rounded"
         />
 
         <!-- Input untuk Message -->
         <textarea
           v-model="message"
-          placeholder="Write your message here"
+          placeholder="Tulis pesan di sini..."
           class="w-full p-2 border rounded h-32 mb-4"
         ></textarea>
 
@@ -36,7 +47,7 @@
           @dragover.prevent
           class="border-2 border-dashed border-gray-400 p-6 text-center rounded mb-4"
         >
-          <p class="text-gray-500">Drag and drop files here or click to upload</p>
+          <p class="text-gray-500">Unggah berkas disini</p>
           <input
             type="file"
             ref="fileInput"
@@ -48,7 +59,7 @@
             class="mt-2 bg-gray-200 px-4 py-2 rounded hover:bg-gray-300"
             @click="triggerFileInput"
           >
-            Choose Files
+            Pilih Berkas
           </button>
           
           <!-- Enhanced Attachment Preview -->
@@ -90,19 +101,21 @@
             @click="sendMail"
             class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed"
           >
-            {{ loading ? "Sending..." : "Send" }}
+            {{ loading ? "Mengirim..." : "Kirim" }}
           </button>
         </div>
       </div>
     </div>
   </div>
+  </div>
 </template>
 
 <script>
 import Sidebar from "@/components/Organisms/Sidebar.vue";
+import Navbar from "@/components/Molecules/Navbar.vue";
 
 export default {
-  components: { Sidebar },
+  components: { Sidebar, Navbar },
   data() {
     return {
       toParty: "",
@@ -110,6 +123,7 @@ export default {
       message: "",
       attachments: [],
       loading: false,
+      isSidebarVisible: true
     };
   },
   computed: {
@@ -121,6 +135,9 @@ export default {
     }
   },
   methods: {
+    toggleSidebar() {
+      this.isSidebarVisible = !this.isSidebarVisible;
+    },
     triggerFileInput() {
       this.$refs.fileInput.click();
     },

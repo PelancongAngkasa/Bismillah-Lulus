@@ -17,6 +17,9 @@ export default defineConfig({
   },
 
   server: {
+
+    host: true, // Mengizinkan akses dari jaringan lokal
+    port: 5173,
     proxy: {
       '/api': {
         target: 'http://localhost:8081',

@@ -1,7 +1,7 @@
 <template>
-  <aside class="bg-black text-white w-64 h-screen p-6">
+  <aside class="bg-slate-800 text-white w-64 h-screen p-6 flex flex-col">
     <h1 class="text-xl font-bold mb-6">SanapatiLink</h1>
-    <nav>
+    <nav class="flex-1">
       <ul class="space-y-2">
         <li v-for="item in menuItems" :key="item.link">
           <router-link
@@ -15,10 +15,11 @@
         </li>
       </ul>
     </nav>
+    <!-- Tombol di bawah -->
     <button 
-      @click="$router.push('/compose')" 
-      class="mb-4 w-full bg-red-500 text-white py-2 px-4 mt-2 rounded">
-      Kembali
+      @click="$router.push('/')" 
+      class="w-full bg-red-500 text-white py-2 px-4 rounded">
+      Keluar dari Admin
     </button>
   </aside>
 </template>
